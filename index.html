@@ -11,7 +11,7 @@
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            height: 100vh;
+            min-height: 100vh;
             margin: 0;
             background-color: #f0f0f0;
         }
@@ -53,23 +53,22 @@
         <!-- Los juegos se cargarán aquí dinámicamente -->
     </div>
 
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
-        import { getDatabase, ref, push, set } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-database.js";
-
+    <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-database-compat.js"></script>
+    <script>
         const firebaseConfig = {
             apiKey: "AIzaSyDkO_ofuhpY2q1VWcJlZw-tMeIGeMkN4aw",
             authDomain: "aaaa-39448.firebaseapp.com",
             projectId: "aaaa-39448",
-            databaseURL: "https://aaaa-39448-default-rtdb.firebaseio.com",
             storageBucket: "aaaa-39448.appspot.com",
             messagingSenderId: "56086769891",
             appId: "1:56086769891:web:213eaee122bc094ff895d6",
-            measurementId: "G-K5GBENTRK3"
+            measurementId: "G-K5GBENTRK3",
+            databaseURL: "https://aaaa-39448-default-rtdb.firebaseio.com" // Añade esta línea con tu URL de base de datos
         };
 
-        const app = initializeApp(firebaseConfig);
-        const database = getDatabase(app);
+        firebase.initializeApp(firebaseConfig);
+        const database = firebase.database();
 
         const games = [
             { id: 'ppt', name: 'Piedra, Papel o Tijeras', players: 2 },
@@ -91,16 +90,16 @@
             document.getElementById('gameList').appendChild(createGameCard(game));
         });
 
-        window.joinGame = function(gameId) {
-            const roomRef = push(ref(database, 'rooms'));
-            set(roomRef, {
+        function joinGame(gameId) {
+            const roomRef = database.ref('rooms').push();
+            roomRef.set({
                 gameId: gameId,
                 players: 1,
                 status: 'waiting'
             }).then(() => {
                 window.location.href = `${gameId}.html?room=${roomRef.key}`;
             });
-        };
+        }
     </script>
 </body>
 </html>
