@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Piedra, Papel o Tijeras</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f0f0f0;
+        }
+        #game {
+            text-align: center;
+        }
+        button {
+            font-size: 1em;
+            margin: 10px;
+            padding: 10px 20px;
+            cursor: pointer;
+        }
+        #result {
+            margin-top: 20px;
+            font-size: 1.2em;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div id="game">
+        <h1>Piedra, Papel o Tijeras</h1>
+        <p>Elige tu jugada:</p>
+        <button onclick="play('piedra')">Piedra</button>
+        <button onclick="play('papel')">Papel</button>
+        <button onclick="play('tijeras')">Tijeras</button>
+        <div id="result"></div>
+    </div>
+
+    <script>
+        function play(userChoice) {
+            const choices = ['piedra', 'papel', 'tijeras'];
+            const computerChoice = choices[Math.floor(Math.random() * 3)];
+            
+            let result;
+            if (userChoice === computerChoice) {
+                result = "Empate!";
+            } else if (
+                (userChoice === 'piedra' && computerChoice === 'tijeras') ||
+                (userChoice === 'papel' && computerChoice === 'piedra') ||
+                (userChoice === 'tijeras' && computerChoice === 'papel')
+            ) {
+                result = "Ganaste!";
+            } else {
+                result = "Perdiste!";
+            }
+            
+            document.getElementById('result').innerHTML = `
+                Elegiste ${userChoice}.<br>
+                La computadora eligió ${computerChoice}.<br>
+                ${result}
+            `;
+        }
+    </script>
+</body>
+</html>
