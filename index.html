@@ -38,8 +38,57 @@
 <body>
     <h1>Juegos Multijugador Online</h1>
     <div class="game-list">
-        <a href="ppt.html" class="game-button">Piedra, Papel o Tijeras</a>
-        <a href="adivina.html" class="game-button">Adivina el Número</a>
+        <button onclick="createGame('ppt')" class="game-button">Piedra, Papel o Tijeras</button>
+        <button onclick="createGame('adivina')" class="game-button">Adivina el Número</button>
     </div>
+
+    <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-database-compat.js"></script>
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyDkO_ofuhpY2q1VWcJlZw-tMeIGeMkN4aw",
+            authDomain: "aaaa-39448.firebaseapp.com",
+            projectId: "aaaa-39448",
+            storageBucket: "aaaa-39448.appspot.com",
+            messagingSenderId: "56086769891",
+            appId: "1:56086769891:web:213eaee122bc094ff895d6",
+            measurementId: "G-K5GBENTRK3",
+            databaseURL: "https://aaaa-39448-default-rtdb.firebaseio.com"
+        };
+
+        firebase.initializeApp(firebaseConfig);
+        const database = firebase.database();
+
+        function createGame(gameType) {
+            const roomsRef = database.ref('rooms');
+            roomsRef.orderByChild('gameType').equalTo(gameType).limitToFirst(1).once('value', snapshot => {
+                let roomKey;
+                let roomData;
+                snapshot.forEach(childSnapshot => {
+                    roomKey = childSnapshot.key;
+                    roomData = childSnapshot.val();
+                });
+
+                if (roomData && roomData.players < 2) {
+                    // Unirse a una sala existente
+                    database.ref('rooms/' + roomKey).update({
+                        players: roomData.players + 1
+                    }).then(() => {
+                        window.location.href = `${gameType}.html?room=${roomKey}`;
+                    });
+                } else {
+                    // Crear una nueva sala
+                    const newRoomRef = roomsRef.push();
+                    newRoomRef.set({
+                        gameType: gameType,
+                        players: 1,
+                        status: 'waiting'
+                    }).then(() => {
+                        window.location.href = `${gameType}.html?room=${newRoomRef.key}`;
+                    });
+                }
+            });
+        }
+    </script>
 </body>
 </html>
