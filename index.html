@@ -64,7 +64,7 @@
             messagingSenderId: "56086769891",
             appId: "1:56086769891:web:213eaee122bc094ff895d6",
             measurementId: "G-K5GBENTRK3",
-            databaseURL: "https://aaaa-39448-default-rtdb.firebaseio.com" // Añade esta línea con tu URL de base de datos
+            databaseURL: "https://aaaa-39448-default-rtdb.firebaseio.com"
         };
 
         firebase.initializeApp(firebaseConfig);
@@ -91,13 +91,33 @@
         });
 
         function joinGame(gameId) {
-            const roomRef = database.ref('rooms').push();
-            roomRef.set({
-                gameId: gameId,
-                players: 1,
-                status: 'waiting'
-            }).then(() => {
-                window.location.href = `${gameId}.html?room=${roomRef.key}`;
+            const roomsRef = database.ref('rooms');
+            roomsRef.orderByChild('gameId').equalTo(gameId).limitToFirst(1).once('value', snapshot => {
+                let roomKey;
+                let roomData;
+                snapshot.forEach(childSnapshot => {
+                    roomKey = childSnapshot.key;
+                    roomData = childSnapshot.val();
+                });
+
+                if (roomData && roomData.players < 2) {
+                    // Unirse a una sala existente
+                    database.ref('rooms/' + roomKey).update({
+                        players: roomData.players + 1
+                    }).then(() => {
+                        window.location.href = `${gameId}.html?room=${roomKey}`;
+                    });
+                } else {
+                    // Crear una nueva sala
+                    const newRoomRef = roomsRef.push();
+                    newRoomRef.set({
+                        gameId: gameId,
+                        players: 1,
+                        status: 'waiting'
+                    }).then(() => {
+                        window.location.href = `${gameId}.html?room=${newRoomRef.key}`;
+                    });
+                }
             });
         }
     </script>
