@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Piedra, Papel o Tijeras</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f0f0f0;
+        }
+        #game {
+            background-color: white;
+            border-radius: 10px;
+            padding: 20px;
+            text-align: center;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        button {
+            font-size: 24px;
+            margin: 10px;
+            padding: 10px 20px;
+            cursor: pointer;
+        }
+        #result {
+            margin-top: 20px;
+            font-size: 18px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div id="game">
+        <h1>Piedra, Papel o Tijeras</h1>
+        <div id="waiting">Esperando al otro jugador...</div>
+        <div id="choices" style="display:none;">
+            <button onclick="makeChoice('piedra')">🪨</button>
+            <button onclick="makeChoice('papel')">📄</button>
+            <button onclick="makeChoice('tijeras')">✂️</button>
+        </div>
+        <div id="result"></div>
+        <button onclick="goBack()" style="margin-top: 20px;">Volver al menú principal</button>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
+        import { getDatabase, ref, onValue, set, remove } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-database.js";
+
+        const firebaseConfig = {
+            // ... (mismo config que en index.html)
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const database = getDatabase(app);
+
+        const urlParams = new URLSearchParams(window.location.search);
+        const roomId = urlParams.get('room');
+        const roomRef = ref(database, 'rooms/' + roomId);
+
+        let playerNumber;
+
+        onValue(roomRef, (snapshot) => {
+            const data = snapshot.val();
+            if (data && data.players === 2) {
+                document.getElementById('waiting').style.display = 'none';
+                document.getElementById('choices').style.display = 'block';
+                playerNumber = playerNumber || 2;
+            } else {
+                playerNumber = 1;
+            }
+        });
+
+        window.makeChoice = function(choice) {
+            set(ref(database, `rooms/${roomId}/choices/player${playerNumber}`), choice);
+        };
+
+        onValue(ref(database, `rooms/${roomId}/choices`), (snapshot) => {
+            const choices = snapshot.val();
+            if (choices && choices.player1 && choices.player2) {
+                const result = determineWinner(choices.player1, choices.player2);
+                document.getElementById('result').textContent = result;
+                // Reiniciar las elecciones después de mostrar el resultado
+                set(ref(database, `rooms/${roomId}/choices`), null);
+            }
+        });
+
+        function determineWinner(choice1, choice2) {
+            if (choice1 === choice2) return "¡Empate!";
+            if ((choice1 === "piedra" && choice2 === "tijeras") ||
+                (choice1 === "papel" && choice2 === "piedra") ||
+                (choice1 === "tijeras" && choice2 === "papel")) {
+                return "¡Jugador 1 gana!";
+            }
+            return "¡Jugador 2 gana!";
+        }
+
+        window.goBack = function() {
+            remove(roomRef).then(() => {
+                window.location.href = 'index.html';
+            });
+        };
+    </script>
+</body>
+</html>
