@@ -27,24 +27,35 @@
             margin: 10px;
             padding: 10px 20px;
             cursor: pointer;
+            border: none;
+            border-radius: 5px;
+            transition: transform 0.1s;
         }
-        #result {
+        button:hover {
+            transform: scale(1.05);
+        }
+        #result, #status {
             margin-top: 20px;
             font-size: 18px;
             font-weight: bold;
+        }
+        #score {
+            margin-top: 10px;
+            font-size: 16px;
         }
     </style>
 </head>
 <body>
     <div id="game">
         <h1>Piedra, Papel o Tijeras</h1>
-        <div id="waiting">Esperando al otro jugador...</div>
+        <div id="status">Conectando...</div>
         <div id="choices" style="display:none;">
             <button onclick="play('piedra')">🪨</button>
             <button onclick="play('papel')">📄</button>
             <button onclick="play('tijeras')">✂️</button>
         </div>
         <div id="result"></div>
+        <div id="score">Jugador 1: 0 | Jugador 2: 0</div>
         <button onclick="goBack()" style="margin-top: 20px;">Volver al menú principal</button>
     </div>
 
@@ -70,40 +81,67 @@
         const roomRef = database.ref('rooms/' + roomId);
 
         let playerNumber;
+        let score = {player1: 0, player2: 0};
 
         roomRef.on('value', (snapshot) => {
             const data = snapshot.val();
-            if (data && data.players === 2) {
-                document.getElementById('waiting').style.display = 'none';
+            const statusDiv = document.getElementById('status');
+            
+            if (!data) {
+                statusDiv.textContent = "Error: La sala no existe.";
+                return;
+            }
+
+            if (data.players === 1) {
+                statusDiv.textContent = "Esperando al otro jugador...";
+                playerNumber = 1;
+            } else if (data.players === 2) {
+                statusDiv.textContent = "¡Dos jugadores conectados! El juego puede comenzar.";
                 document.getElementById('choices').style.display = 'block';
                 playerNumber = playerNumber || 2;
-            } else {
-                playerNumber = 1;
+            }
+
+            if (data.score) {
+                score = data.score;
+                updateScoreDisplay();
             }
         });
 
         function play(choice) {
             roomRef.child(`choices/player${playerNumber}`).set(choice);
+            document.getElementById('status').textContent = "Esperando la elección del otro jugador...";
+            document.getElementById('choices').style.display = 'none';
         }
 
         roomRef.child('choices').on('value', (snapshot) => {
             const choices = snapshot.val();
             if (choices && choices.player1 && choices.player2) {
                 const result = determineWinner(choices.player1, choices.player2);
-                document.getElementById('result').innerHTML = result;
-                // Reiniciar las elecciones después de mostrar el resultado
+                document.getElementById('result').innerHTML = result.message;
+                if (result.winner) {
+                    score[result.winner]++;
+                    roomRef.child('score').set(score);
+                }
+                updateScoreDisplay();
+                document.getElementById('status').textContent = "Ronda terminada. Elige de nuevo para jugar otra ronda.";
+                document.getElementById('choices').style.display = 'block';
                 roomRef.child('choices').set(null);
             }
         });
 
         function determineWinner(choice1, choice2) {
-            if (choice1 === choice2) return "¡Empate!";
+            let message = `Jugador 1 eligió ${choice1}. Jugador 2 eligió ${choice2}.<br>`;
+            if (choice1 === choice2) return {message: message + "¡Empate!", winner: null};
             if ((choice1 === "piedra" && choice2 === "tijeras") ||
                 (choice1 === "papel" && choice2 === "piedra") ||
                 (choice1 === "tijeras" && choice2 === "papel")) {
-                return "¡Jugador 1 gana!";
+                return {message: message + "¡Jugador 1 gana!", winner: 'player1'};
             }
-            return "¡Jugador 2 gana!";
+            return {message: message + "¡Jugador 2 gana!", winner: 'player2'};
+        }
+
+        function updateScoreDisplay() {
+            document.getElementById('score').textContent = `Jugador 1: ${score.player1} | Jugador 2: ${score.player2}`;
         }
 
         function goBack() {
@@ -111,6 +149,13 @@
                 window.location.href = 'index.html';
             });
         }
+
+        // Manejar desconexiones
+        window.addEventListener('beforeunload', () => {
+            if (playerNumber) {
+                roomRef.child('players').transaction(players => players > 0 ? players - 1 : 0);
+            }
+        });
     </script>
 </body>
 </html>
