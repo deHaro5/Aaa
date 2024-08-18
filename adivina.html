@@ -52,24 +52,30 @@
         <button onclick="goBack()" style="margin-top: 20px;">Volver al menú principal</button>
     </div>
 
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
-        import { getDatabase, ref, onValue, set, remove } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-database.js";
-
+    <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-database-compat.js"></script>
+    <script>
         const firebaseConfig = {
-            // ... (mismo config que en index.html)
+            apiKey: "AIzaSyDkO_ofuhpY2q1VWcJlZw-tMeIGeMkN4aw",
+            authDomain: "aaaa-39448.firebaseapp.com",
+            projectId: "aaaa-39448",
+            storageBucket: "aaaa-39448.appspot.com",
+            messagingSenderId: "56086769891",
+            appId: "1:56086769891:web:213eaee122bc094ff895d6",
+            measurementId: "G-K5GBENTRK3",
+            databaseURL: "https://aaaa-39448-default-rtdb.firebaseio.com"
         };
 
-        const app = initializeApp(firebaseConfig);
-        const database = getDatabase(app);
+        firebase.initializeApp(firebaseConfig);
+        const database = firebase.database();
 
         const urlParams = new URLSearchParams(window.location.search);
         const roomId = urlParams.get('room');
-        const roomRef = ref(database, 'rooms/' + roomId);
+        const roomRef = database.ref('rooms/' + roomId);
 
         let playerNumber;
 
-        onValue(roomRef, (snapshot) => {
+        roomRef.on('value', (snapshot) => {
             const data = snapshot.val();
             if (data && data.players === 2) {
                 document.getElementById('waiting').style.display = 'none';
@@ -83,45 +89,47 @@
             }
         });
 
-        window.setSecretNumber = function() {
+        function setSecretNumber() {
             const secretNumber = document.getElementById('secretNumber').value;
-            set(ref(database, `rooms/${roomId}/secretNumber`), secretNumber);
+            roomRef.child('secretNumber').set(secretNumber);
             document.getElementById('player1').innerHTML = '<p>Esperando a que el Jugador 2 adivine...</p>';
-        };
+        }
 
-        window.makeGuess = function() {
+        function makeGuess() {
             const guess = document.getElementById('guess').value;
-            set(ref(database, `rooms/${roomId}/guess`), guess);
-        };
+            roomRef.child('guess').set(guess);
+        }
 
-        onValue(ref(database, `rooms/${roomId}/secretNumber`), (snapshot) => {
+        roomRef.child('secretNumber').on('value', (snapshot) => {
             const secretNumber = snapshot.val();
             if (secretNumber && playerNumber === 2) {
                 document.getElementById('player2').style.display = 'block';
             }
         });
 
-        onValue(ref(database, `rooms/${roomId}/guess`), (snapshot) => {
+        roomRef.child('guess').on('value', (snapshot) => {
             const guess = snapshot.val();
-            const secretNumber = snapshot.val();
-            if (guess && secretNumber) {
-                let result;
-                if (parseInt(guess) === parseInt(secretNumber)) {
-                    result = "¡Correcto! El Jugador 2 ha adivinado el número.";
-                } else if (parseInt(guess) < parseInt(secretNumber)) {
-                    result = "Demasiado bajo. Intenta un número más alto.";
-                } else {
-                    result = "Demasiado alto. Intenta un número más bajo.";
+            roomRef.child('secretNumber').once('value', (secretSnapshot) => {
+                const secretNumber = secretSnapshot.val();
+                if (guess && secretNumber) {
+                    let result;
+                    if (parseInt(guess) === parseInt(secretNumber)) {
+                        result = "¡Correcto! El Jugador 2 ha adivinado el número.";
+                    } else if (parseInt(guess) < parseInt(secretNumber)) {
+                        result = "Demasiado bajo. Intenta un número más alto.";
+                    } else {
+                        result = "Demasiado alto. Intenta un número más bajo.";
+                    }
+                    document.getElementById('result').textContent = result;
                 }
-                document.getElementById('result').textContent = result;
-            }
+            });
         });
 
-        window.goBack = function() {
-            remove(roomRef).then(() => {
+        function goBack() {
+            roomRef.remove().then(() => {
                 window.location.href = 'index.html';
             });
-        };
+        }
     </script>
 </body>
 </html>
