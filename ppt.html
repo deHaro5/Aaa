@@ -48,24 +48,30 @@
         <button onclick="goBack()" style="margin-top: 20px;">Volver al menú principal</button>
     </div>
 
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
-        import { getDatabase, ref, onValue, set, remove } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-database.js";
-
+    <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-database-compat.js"></script>
+    <script>
         const firebaseConfig = {
-            // ... (mismo config que en index.html)
+            apiKey: "AIzaSyDkO_ofuhpY2q1VWcJlZw-tMeIGeMkN4aw",
+            authDomain: "aaaa-39448.firebaseapp.com",
+            projectId: "aaaa-39448",
+            storageBucket: "aaaa-39448.appspot.com",
+            messagingSenderId: "56086769891",
+            appId: "1:56086769891:web:213eaee122bc094ff895d6",
+            measurementId: "G-K5GBENTRK3",
+            databaseURL: "https://aaaa-39448-default-rtdb.firebaseio.com"
         };
 
-        const app = initializeApp(firebaseConfig);
-        const database = getDatabase(app);
+        firebase.initializeApp(firebaseConfig);
+        const database = firebase.database();
 
         const urlParams = new URLSearchParams(window.location.search);
         const roomId = urlParams.get('room');
-        const roomRef = ref(database, 'rooms/' + roomId);
+        const roomRef = database.ref('rooms/' + roomId);
 
         let playerNumber;
 
-        onValue(roomRef, (snapshot) => {
+        roomRef.on('value', (snapshot) => {
             const data = snapshot.val();
             if (data && data.players === 2) {
                 document.getElementById('waiting').style.display = 'none';
@@ -76,17 +82,17 @@
             }
         });
 
-        window.makeChoice = function(choice) {
-            set(ref(database, `rooms/${roomId}/choices/player${playerNumber}`), choice);
-        };
+        function makeChoice(choice) {
+            roomRef.child(`choices/player${playerNumber}`).set(choice);
+        }
 
-        onValue(ref(database, `rooms/${roomId}/choices`), (snapshot) => {
+        roomRef.child('choices').on('value', (snapshot) => {
             const choices = snapshot.val();
             if (choices && choices.player1 && choices.player2) {
                 const result = determineWinner(choices.player1, choices.player2);
                 document.getElementById('result').textContent = result;
                 // Reiniciar las elecciones después de mostrar el resultado
-                set(ref(database, `rooms/${roomId}/choices`), null);
+                roomRef.child('choices').set(null);
             }
         });
 
@@ -100,11 +106,11 @@
             return "¡Jugador 2 gana!";
         }
 
-        window.goBack = function() {
-            remove(roomRef).then(() => {
+        function goBack() {
+            roomRef.remove().then(() => {
                 window.location.href = 'index.html';
             });
-        };
+        }
     </script>
 </body>
 </html>
