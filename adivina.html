@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Adivina el Número</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f0f0f0;
+        }
+        #game {
+            background-color: white;
+            border-radius: 10px;
+            padding: 20px;
+            text-align: center;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        input, button {
+            font-size: 18px;
+            margin: 10px;
+            padding: 5px 10px;
+        }
+        #result {
+            margin-top: 20px;
+            font-size: 18px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div id="game">
+        <h1>Adivina el Número</h1>
+        <div id="waiting">Esperando al otro jugador...</div>
+        <div id="player1" style="display:none;">
+            <p>Jugador 1, elige un número entre 1 y 100:</p>
+            <input type="number" id="secretNumber" min="1" max="100">
+            <button onclick="setSecretNumber()">Establecer número</button>
+        </div>
+        <div id="player2" style="display:none;">
+            <p>Jugador 2, adivina el número:</p>
+            <input type="number" id="guess" min="1" max="100">
+            <button onclick="makeGuess()">Adivinar</button>
+        </div>
+        <div id="result"></div>
+        <button onclick="goBack()" style="margin-top: 20px;">Volver al menú principal</button>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
+        import { getDatabase, ref, onValue, set, remove } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-database.js";
+
+        const firebaseConfig = {
+            // ... (mismo config que en index.html)
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const database = getDatabase(app);
+
+        const urlParams = new URLSearchParams(window.location.search);
+        const roomId = urlParams.get('room');
+        const roomRef = ref(database, 'rooms/' + roomId);
+
+        let playerNumber;
+
+        onValue(roomRef, (snapshot) => {
+            const data = snapshot.val();
+            if (data && data.players === 2) {
+                document.getElementById('waiting').style.display = 'none';
+                if (playerNumber === 1) {
+                    document.getElementById('player1').style.display = 'block';
+                } else {
+                    document.getElementById('player2').style.display = 'block';
+                }
+            } else {
+                playerNumber = 1;
+            }
+        });
+
+        window.setSecretNumber = function() {
+            const secretNumber = document.getElementById('secretNumber').value;
+            set(ref(database, `rooms/${roomId}/secretNumber`), secretNumber);
+            document.getElementById('player1').innerHTML = '<p>Esperando a que el Jugador 2 adivine...</p>';
+        };
+
+        window.makeGuess = function() {
+            const guess = document.getElementById('guess').value;
+            set(ref(database, `rooms/${roomId}/guess`), guess);
+        };
+
+        onValue(ref(database, `rooms/${roomId}/secretNumber`), (snapshot) => {
+            const secretNumber = snapshot.val();
+            if (secretNumber && playerNumber === 2) {
+                document.getElementById('player2').style.display = 'block';
+            }
+        });
+
+        onValue(ref(database, `rooms/${roomId}/guess`), (snapshot) => {
+            const guess = snapshot.val();
+            const secretNumber = snapshot.val();
+            if (guess && secretNumber) {
+                let result;
+                if (parseInt(guess) === parseInt(secretNumber)) {
+                    result = "¡Correcto! El Jugador 2 ha adivinado el número.";
+                } else if (parseInt(guess) < parseInt(secretNumber)) {
+                    result = "Demasiado bajo. Intenta un número más alto.";
+                } else {
+                    result = "Demasiado alto. Intenta un número más bajo.";
+                }
+                document.getElementById('result').textContent = result;
+            }
+        });
+
+        window.goBack = function() {
+            remove(roomRef).then(() => {
+                window.location.href = 'index.html';
+            });
+        };
+    </script>
+</body>
+</html>
