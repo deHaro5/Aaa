@@ -15,6 +15,7 @@
             margin: 0;
             background-color: #f0f0f0;
         }
+
         #lobby, #game {
             background-color: white;
             border-radius: 10px;
@@ -24,8 +25,15 @@
             width: 100%;
             text-align: center;
         }
-        #game { display: none; }
-        h1 { color: #333; }
+
+        #game { 
+            display: none; 
+        }
+
+        h1 { 
+            color: #333; 
+        }
+
         #playerList, #scoreboard {
             display: flex;
             flex-wrap: wrap;
@@ -33,22 +41,26 @@
             gap: 10px;
             margin-top: 20px;
         }
+
         .player-card {
             background-color: #4CAF50;
             color: white;
             padding: 10px;
             border-radius: 5px;
         }
+
         #word, #guesses, #hangman {
             font-size: 24px;
             margin: 20px 0;
         }
+
         #keyboard {
             display: grid;
             grid-template-columns: repeat(7, 1fr);
             gap: 5px;
             margin-top: 20px;
         }
+
         .key {
             background-color: #2196F3;
             color: white;
@@ -58,25 +70,33 @@
             cursor: pointer;
             border-radius: 5px;
         }
+
         .key:disabled {
             background-color: #ccc;
         }
+
+        #chat {
+            margin-top: 20px;
+        }
+
         #chatBox {
             height: 150px;
             overflow-y: auto;
             border: 1px solid #ccc;
             padding: 10px;
-            margin-top: 20px;
             text-align: left;
         }
+
         #chatInput {
             width: calc(100% - 110px);
             padding: 10px;
             margin-right: 10px;
         }
+
         #sendMessage {
             width: 100px;
         }
+
         button {
             background-color: #4CAF50;
             color: white;
@@ -96,6 +116,7 @@
         <button id="startGame">Iniciar Juego</button>
         <button onclick="goBack()">Volver al menú principal</button>
     </div>
+
     <div id="game">
         <h1>Ahorcado Multijugador</h1>
         <div id="scoreboard"></div>
@@ -104,11 +125,18 @@
         <div id="guesses"></div>
         <div id="hangman"></div>
         <div id="keyboard"></div>
-        <input type="text" id="wordInput" placeholder="Ingresa una palabra" style="display:none;">
-        <button id="confirmWord" style="display:none;">Confirmar Palabra</button>
-        <div id="chatBox"></div>
-        <input type="text" id="chatInput" placeholder="Escribe un mensaje...">
-        <button id="sendMessage">Enviar</button>
+
+        <div id="wordInputArea" style="display:none;">
+            <input type="text" id="wordInput" placeholder="Ingresa una palabra">
+            <button id="confirmWord">Confirmar Palabra</button>
+        </div>
+
+        <div id="chat">
+            <div id="chatBox"></div>
+            <input type="text" id="chatInput" placeholder="Escribe un mensaje...">
+            <button id="sendMessage">Enviar</button>
+        </div>
+
         <button onclick="leaveGame()">Salir del juego</button>
     </div>
 
@@ -260,14 +288,12 @@
         }
 
         function showWordInput() {
-            document.getElementById('wordInput').style.display = 'inline-block';
-            document.getElementById('confirmWord').style.display = 'inline-block';
+            document.getElementById('wordInputArea').style.display = 'block';
             document.getElementById('keyboard').style.display = 'none';
         }
 
         function hideWordInput() {
-            document.getElementById('wordInput').style.display = 'none';
-            document.getElementById('confirmWord').style.display = 'none';
+            document.getElementById('wordInputArea').style.display = 'none';
             document.getElementById('keyboard').style.display = 'grid';
         }
 
@@ -352,6 +378,13 @@
                 });
 
                 alert(won ? "¡Palabra adivinada correctamente!" : "¡Se acabaron los intentos!");
+
+                // Automatically start a new round after a short delay
+                setTimeout(() => {
+                    if (playerId === getNextPlayerId(data.players, data.currentTurn)) {
+                        showWordInput();
+                    }
+                }, 2000); // 2 seconds delay
             });
         }
 
