@@ -48,111 +48,15 @@
         .game-button:hover {
             background-color: #45a049;
         }
-        #status {
-            margin-top: 20px;
-            font-weight: bold;
-            color: #666;
-        }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>Juegos Multijugador Online</h1>
         <div class="game-list">
-            <button onclick="joinGame('ppt')" class="game-button">Piedra, Papel o Tijeras</button>
-            <button onclick="joinGame('adivina')" class="game-button">Adivina el Número</button>
+            <a href="rooms.html?game=ppt" class="game-button">Piedra, Papel o Tijeras</a>
+            <a href="rooms.html?game=adivina" class="game-button">Adivina el Número</a>
         </div>
-        <div id="status"></div>
     </div>
-
-    <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-database-compat.js"></script>
-    <script>
-        const firebaseConfig = {
-            apiKey: "AIzaSyDkO_ofuhpY2q1VWcJlZw-tMeIGeMkN4aw",
-            authDomain: "aaaa-39448.firebaseapp.com",
-            projectId: "aaaa-39448",
-            storageBucket: "aaaa-39448.appspot.com",
-            messagingSenderId: "56086769891",
-            appId: "1:56086769891:web:213eaee122bc094ff895d6",
-            measurementId: "G-K5GBENTRK3",
-            databaseURL: "https://aaaa-39448-default-rtdb.firebaseio.com"
-        };
-
-        firebase.initializeApp(firebaseConfig);
-        const database = firebase.database();
-
-        function joinGame(gameType) {
-            const statusDiv = document.getElementById('status');
-            statusDiv.textContent = "Buscando una sala...";
-
-            const roomsRef = database.ref('rooms');
-            
-            // Primero, intentamos unirnos a una sala existente
-            roomsRef.orderByChild('gameType').equalTo(gameType).limitToFirst(1).once('value', snapshot => {
-                let availableRoom = null;
-                snapshot.forEach(childSnapshot => {
-                    const roomData = childSnapshot.val();
-                    if (roomData.players < 2 && roomData.status === 'waiting') {
-                        availableRoom = { key: childSnapshot.key, data: roomData };
-                        return true;
-                    }
-                });
-
-                if (availableRoom) {
-                    // Nos unimos a la sala existente
-                    statusDiv.textContent = "Uniéndose a una sala existente...";
-                    database.ref('rooms/' + availableRoom.key).update({
-                        players: availableRoom.data.players + 1,
-                        status: 'full'
-                    }).then(() => {
-                        window.location.href = `${gameType}.html?room=${availableRoom.key}`;
-                    });
-                } else {
-                    // Creamos una nueva sala
-                    statusDiv.textContent = "Creando una nueva sala...";
-                    const newRoomRef = roomsRef.push();
-                    newRoomRef.set({
-                        gameType: gameType,
-                        players: 1,
-                        status: 'waiting',
-                        createdAt: firebase.database.ServerValue.TIMESTAMP
-                    }).then(() => {
-                        // Esperamos a que otro jugador se una
-                        const roomListener = newRoomRef.on('value', snapshot => {
-                            const updatedRoom = snapshot.val();
-                            if (updatedRoom && updatedRoom.players === 2) {
-                                newRoomRef.off('value', roomListener);
-                                window.location.href = `${gameType}.html?room=${newRoomRef.key}`;
-                            }
-                        });
-
-                        // Configuramos un tiempo de espera
-                        setTimeout(() => {
-                            newRoomRef.off('value', roomListener);
-                            if (statusDiv.textContent === "Creando una nueva sala...") {
-                                statusDiv.textContent = "No se encontraron jugadores. Intenta de nuevo.";
-                                newRoomRef.remove();
-                            }
-                        }, 30000); // 30 segundos de tiempo de espera
-                    });
-                }
-            });
-        }
-
-        // Función para limpiar salas antiguas (se puede llamar periódicamente)
-        function cleanOldRooms() {
-            const oneHourAgo = Date.now() - (60 * 60 * 1000);
-            const roomsRef = database.ref('rooms');
-            roomsRef.orderByChild('createdAt').endAt(oneHourAgo).once('value', snapshot => {
-                snapshot.forEach(childSnapshot => {
-                    childSnapshot.ref.remove();
-                });
-            });
-        }
-
-        // Llama a cleanOldRooms cada hora
-        setInterval(cleanOldRooms, 60 * 60 * 1000);
-    </script>
 </body>
 </html>
