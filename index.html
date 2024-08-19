@@ -87,62 +87,57 @@
             statusDiv.textContent = "Buscando una sala...";
 
             const roomsRef = database.ref('rooms');
-            let timeoutId;
+            
+            // Primero, intentamos unirnos a una sala existente
+            roomsRef.orderByChild('gameType').equalTo(gameType).limitToFirst(1).once('value', snapshot => {
+                let availableRoom = null;
+                snapshot.forEach(childSnapshot => {
+                    const roomData = childSnapshot.val();
+                    if (roomData.players < 2 && roomData.status === 'waiting') {
+                        availableRoom = { key: childSnapshot.key, data: roomData };
+                        return true;
+                    }
+                });
 
-            const searchPromise = new Promise((resolve, reject) => {
-                roomsRef.orderByChild('gameType').equalTo(gameType).limitToFirst(1).once('value', snapshot => {
-                    let availableRoom = null;
-                    snapshot.forEach(childSnapshot => {
-                        const roomData = childSnapshot.val();
-                        if (roomData.players < 2 && roomData.status === 'waiting') {
-                            availableRoom = { key: childSnapshot.key, data: roomData };
-                            return true;
-                        }
+                if (availableRoom) {
+                    // Nos unimos a la sala existente
+                    statusDiv.textContent = "Uniéndose a una sala existente...";
+                    database.ref('rooms/' + availableRoom.key).update({
+                        players: availableRoom.data.players + 1,
+                        status: 'full'
+                    }).then(() => {
+                        window.location.href = `${gameType}.html?room=${availableRoom.key}`;
                     });
+                } else {
+                    // Creamos una nueva sala
+                    statusDiv.textContent = "Creando una nueva sala...";
+                    const newRoomRef = roomsRef.push();
+                    newRoomRef.set({
+                        gameType: gameType,
+                        players: 1,
+                        status: 'waiting',
+                        createdAt: firebase.database.ServerValue.TIMESTAMP
+                    }).then(() => {
+                        // Esperamos a que otro jugador se una
+                        const roomListener = newRoomRef.on('value', snapshot => {
+                            const updatedRoom = snapshot.val();
+                            if (updatedRoom && updatedRoom.players === 2) {
+                                newRoomRef.off('value', roomListener);
+                                window.location.href = `${gameType}.html?room=${newRoomRef.key}`;
+                            }
+                        });
 
-                    if (availableRoom) {
-                        resolve(availableRoom);
-                    } else {
-                        resolve(null);
-                    }
-                }, error => {
-                    reject(error);
-                });
+                        // Configuramos un tiempo de espera
+                        setTimeout(() => {
+                            newRoomRef.off('value', roomListener);
+                            if (statusDiv.textContent === "Creando una nueva sala...") {
+                                statusDiv.textContent = "No se encontraron jugadores. Intenta de nuevo.";
+                                newRoomRef.remove();
+                            }
+                        }, 30000); // 30 segundos de tiempo de espera
+                    });
+                }
             });
-
-            const timeoutPromise = new Promise((_, reject) => {
-                timeoutId = setTimeout(() => {
-                    reject(new Error('Tiempo de búsqueda agotado'));
-                }, 10000); // 10 segundos de tiempo límite
-            });
-
-            Promise.race([searchPromise, timeoutPromise])
-                .then(availableRoom => {
-                    clearTimeout(timeoutId);
-                    if (availableRoom) {
-                        statusDiv.textContent = "Uniéndose a una sala existente...";
-                        return database.ref('rooms/' + availableRoom.key).update({
-                            players: availableRoom.data.players + 1,
-                            status: 'full'
-                        }).then(() => availableRoom.key);
-                    } else {
-                        statusDiv.textContent = "Creando una nueva sala...";
-                        const newRoomRef = roomsRef.push();
-                        return newRoomRef.set({
-                            gameType: gameType,
-                            players: 1,
-                            status: 'waiting',
-                            createdAt: firebase.database.ServerValue.TIMESTAMP
-                        }).then(() => newRoomRef.key);
-                    }
-                })
-                .then(roomKey => {
-                    window.location.href = `${gameType}.html?room=${roomKey}`;
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                    statusDiv.textContent = "Error al buscar sala. Por favor, intenta de nuevo.";
-                });
         }
 
         // Función para limpiar salas antiguas (se puede llamar periódicamente)
