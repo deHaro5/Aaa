@@ -11,7 +11,7 @@
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            height: 100vh;
+            min-height: 100vh;
             margin: 0;
             background-color: #f0f0f0;
         }
@@ -21,34 +21,62 @@
             padding: 20px;
             text-align: center;
             box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            max-width: 400px;
+            width: 100%;
         }
         input, button {
             font-size: 18px;
             margin: 10px;
-            padding: 5px 10px;
+            padding: 10px;
+            width: calc(100% - 20px);
+            box-sizing: border-box;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            background-color: #45a049;
         }
         #result, #status {
             margin-top: 20px;
             font-size: 18px;
             font-weight: bold;
         }
+        #roomCode {
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 20px;
+        }
+        #score, #attempts {
+            margin-top: 10px;
+            font-size: 16px;
+        }
     </style>
 </head>
 <body>
     <div id="game">
+        <div id="roomCode"></div>
         <h1>Adivina el Número</h1>
         <div id="status">Esperando al otro jugador...</div>
+        <button id="startGame" style="display:none;">Iniciar Partida</button>
+        <div id="playerTurn" style="display:none;"></div>
         <div id="player1" style="display:none;">
-            <p>Jugador 1, elige un número entre 1 y 100:</p>
+            <p>Elige un número entre 1 y 100:</p>
             <input type="number" id="secretNumber" min="1" max="100">
             <button onclick="setSecretNumber()">Establecer número</button>
         </div>
         <div id="player2" style="display:none;">
-            <p>Jugador 2, adivina el número:</p>
+            <p>Adivina el número:</p>
             <input type="number" id="guess" min="1" max="100">
             <button onclick="makeGuess()">Adivinar</button>
         </div>
         <div id="result"></div>
+        <div id="attempts"></div>
+        <div id="score">Jugador 1: 0 | Jugador 2: 0</div>
         <button onclick="goBack()" style="margin-top: 20px;">Volver al menú principal</button>
     </div>
 
@@ -75,49 +103,88 @@
         const roomRef = ref(database, 'rooms/' + roomId);
 
         let playerNumber;
+        let currentTurn = 1;
+        let attempts = 5;
+        let score = {player1: 0, player2: 0};
 
         onValue(roomRef, (snapshot) => {
             const data = snapshot.val();
-            if (data && data.players === 2) {
-                document.getElementById('status').style.display = 'none';
-                if (!playerNumber) {
-                    get(roomRef).then((snapshot) => {
-                        const updatedData = snapshot.val();
-                        playerNumber = updatedData.player1Connected ? 2 : 1;
-                        update(roomRef, { [`player${playerNumber}Connected`]: true });
-                        initializeGame();
-                    });
-                } else {
+            if (data) {
+                document.getElementById('roomCode').textContent = `Código de sala: ${data.code}`;
+                if (data.players === 2 && !data.gameStarted) {
+                    document.getElementById('status').textContent = 'Ambos jugadores conectados. Listo para iniciar.';
+                    document.getElementById('startGame').style.display = 'block';
+                }
+                if (data.gameStarted) {
                     initializeGame();
+                }
+                if (data.currentTurn) {
+                    currentTurn = data.currentTurn;
+                    updateTurnDisplay();
+                }
+                if (data.attempts) {
+                    attempts = data.attempts;
+                    updateAttemptsDisplay();
+                }
+                if (data.score) {
+                    score = data.score;
+                    updateScoreDisplay();
                 }
             }
         });
 
+        document.getElementById('startGame').addEventListener('click', () => {
+            update(roomRef, { gameStarted: true, currentTurn: 1, attempts: 5 });
+        });
+
         function initializeGame() {
-            if (playerNumber === 1) {
-                document.getElementById('player1').style.display = 'block';
+            document.getElementById('status').style.display = 'none';
+            document.getElementById('startGame').style.display = 'none';
+            document.getElementById('playerTurn').style.display = 'block';
+            if (!playerNumber) {
+                get(roomRef).then((snapshot) => {
+                    const data = snapshot.val();
+                    playerNumber = data.player1Connected ? 2 : 1;
+                    update(roomRef, { [`player${playerNumber}Connected`]: true });
+                    updateTurnDisplay();
+                });
             } else {
-                document.getElementById('player2').style.display = 'block';
-                checkSecretNumber();
+                updateTurnDisplay();
             }
         }
 
-        function checkSecretNumber() {
-            get(ref(database, `rooms/${roomId}/secretNumber`)).then((snapshot) => {
-                if (snapshot.exists()) {
-                    document.getElementById('player2').style.display = 'block';
+        function updateTurnDisplay() {
+            const turnDisplay = document.getElementById('playerTurn');
+            if (currentTurn === playerNumber) {
+                turnDisplay.textContent = "Tu turno";
+if (playerNumber === 1) {
+                    document.getElementById('player1').style.display = 'block';
+                    document.getElementById('player2').style.display = 'none';
                 } else {
-                    document.getElementById('status').textContent = "Esperando a que el Jugador 1 elija un número...";
-                    document.getElementById('status').style.display = 'block';
+                    document.getElementById('player1').style.display = 'none';
+                    document.getElementById('player2').style.display = 'block';
                 }
-            });
+            } else {
+                turnDisplay.textContent = `Turno del Jugador ${currentTurn}`;
+                document.getElementById('player1').style.display = 'none';
+                document.getElementById('player2').style.display = 'none';
+            }
+        }
+
+        function updateAttemptsDisplay() {
+            document.getElementById('attempts').textContent = `Intentos restantes: ${attempts}`;
+        }
+
+        function updateScoreDisplay() {
+            document.getElementById('score').textContent = `Jugador 1: ${score.player1} | Jugador 2: ${score.player2}`;
         }
 
         window.setSecretNumber = function() {
             const secretNumber = document.getElementById('secretNumber').value;
             if (secretNumber >= 1 && secretNumber <= 100) {
                 set(ref(database, `rooms/${roomId}/secretNumber`), secretNumber);
-                document.getElementById('player1').innerHTML = '<p>Esperando a que el Jugador 2 adivine...</p>';
+                update(roomRef, { currentTurn: 2, attempts: 5 });
+                document.getElementById('player1').style.display = 'none';
             } else {
                 alert("Por favor, elige un número entre 1 y 100.");
             }
@@ -127,6 +194,8 @@
             const guess = document.getElementById('guess').value;
             if (guess >= 1 && guess <= 100) {
                 set(ref(database, `rooms/${roomId}/guess`), guess);
+                attempts--;
+                update(roomRef, { attempts: attempts });
             } else {
                 alert("Por favor, adivina un número entre 1 y 100.");
             }
@@ -140,13 +209,30 @@
                     if (secretNumber) {
                         let result;
                         if (parseInt(guess) === parseInt(secretNumber)) {
-                            result = "¡Correcto! El Jugador 2 ha adivinado el número.";
-                        } else if (parseInt(guess) < parseInt(secretNumber)) {
-                            result = "Demasiado bajo. Intenta un número más alto.";
+                            result = "¡Correcto! Has adivinado el número.";
+                            score.player2++;
+                            update(roomRef, { 
+                                score: score, 
+                                currentTurn: 1, 
+                                secretNumber: null,
+                                guess: null
+                            });
+                        } else if (attempts > 1) {
+                            if (parseInt(guess) < parseInt(secretNumber)) {
+                                result = "Demasiado bajo. Intenta un número más alto.";
+                            } else {
+                                result = "Demasiado alto. Intenta un número más bajo.";
+                            }
                         } else {
-                            result = "Demasiado alto. Intenta un número más bajo.";
+                            result = `Se acabaron los intentos. El número era ${secretNumber}.`;
+                            score.player1++;
+                            update(roomRef, { 
+                                score: score, 
+                                currentTurn: 1, 
+                                secretNumber: null,
+                                guess: null
+                            });
                         }
-                        document.getElementById('result').textContent = result;
                         update(ref(database, `rooms/${roomId}`), { lastResult: result });
                     }
                 });
@@ -166,7 +252,6 @@
             });
         }
 
-        // Manejar desconexiones
         window.addEventListener('beforeunload', () => {
             if (playerNumber) {
                 update(ref(database, `rooms/${roomId}`), {
