@@ -63,6 +63,17 @@
         .create-room:hover {
             background-color: #1976D2;
         }
+        #debugLog {
+            margin-top: 20px;
+            padding: 10px;
+            background-color: #f0f0f0;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            max-height: 200px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 12px;
+        }
     </style>
 </head>
 <body>
@@ -70,27 +81,36 @@
         <h1>Salas de Juego</h1>
         <div id="roomList" class="room-list"></div>
         <button id="createRoom" class="create-room">Crear Nueva Sala</button>
+        <div id="debugLog"></div>
     </div>
 
-    <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-database-compat.js"></script>
-    <script>
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js";
+        import { getDatabase, ref, push, set, onValue, update } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-database.js";
+
         const firebaseConfig = {
-            apiKey: "AIzaSyDkO_ofuhpY2q1VWcJlZw-tMeIGeMkN4aw",
-            authDomain: "aaaa-39448.firebaseapp.com",
-            projectId: "aaaa-39448",
-            storageBucket: "aaaa-39448.appspot.com",
-            messagingSenderId: "56086769891",
-            appId: "1:56086769891:web:213eaee122bc094ff895d6",
-            measurementId: "G-K5GBENTRK3",
-            databaseURL: "https://aaaa-39448-default-rtdb.firebaseio.com"
+            apiKey: "YOUR_API_KEY",
+            authDomain: "YOUR_AUTH_DOMAIN",
+            projectId: "YOUR_PROJECT_ID",
+            storageBucket: "YOUR_STORAGE_BUCKET",
+            messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
+            appId: "YOUR_APP_ID",
+            databaseURL: "YOUR_DATABASE_URL"
         };
 
-        firebase.initializeApp(firebaseConfig);
-        const database = firebase.database();
+        const app = initializeApp(firebaseConfig);
+        const database = getDatabase(app);
 
         const urlParams = new URLSearchParams(window.location.search);
         const gameType = urlParams.get('game');
+
+        const debugLog = document.getElementById('debugLog');
+
+        function log(message) {
+            console.log(message);
+            debugLog.innerHTML += message + '<br>';
+            debugLog.scrollTop = debugLog.scrollHeight;
+        }
 
         function generateRoomCode() {
             const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
@@ -102,34 +122,45 @@
         }
 
         function createRoom() {
+            log('Creando nueva sala...');
             const roomCode = generateRoomCode();
-            const newRoomRef = database.ref('rooms').push();
-            newRoomRef.set({
+            const newRoomRef = push(ref(database, 'rooms'));
+            set(newRoomRef, {
                 gameType: gameType,
                 code: roomCode,
                 players: 1,
                 status: 'waiting',
-                createdAt: firebase.database.ServerValue.TIMESTAMP
+                createdAt: Date.now()
             }).then(() => {
+                log(`Sala creada con éxito. Código: ${roomCode}`);
                 window.location.href = `${gameType}.html?room=${newRoomRef.key}`;
+            }).catch(error => {
+                log(`Error al crear sala: ${error.message}`);
             });
         }
 
         function joinRoom(roomKey) {
-            database.ref('rooms/' + roomKey).update({
+            log(`Uniéndose a la sala ${roomKey}...`);
+            update(ref(database, 'rooms/' + roomKey), {
                 players: 2,
                 status: 'full'
             }).then(() => {
+                log('Unido a la sala con éxito');
                 window.location.href = `${gameType}.html?room=${roomKey}`;
+            }).catch(error => {
+                log(`Error al unirse a la sala: ${error.message}`);
             });
         }
 
         function updateRoomList(snapshot) {
+            log('Actualizando lista de salas...');
             const roomList = document.getElementById('roomList');
             roomList.innerHTML = '';
+            let roomCount = 0;
             snapshot.forEach(childSnapshot => {
                 const roomData = childSnapshot.val();
                 if (roomData.gameType === gameType) {
+                    roomCount++;
                     const roomElement = document.createElement('div');
                     roomElement.className = `room ${roomData.status === 'waiting' ? 'free' : 'occupied'}`;
                     roomElement.textContent = roomData.code;
@@ -139,21 +170,22 @@
                     roomList.appendChild(roomElement);
                 }
             });
+            log(`Se encontraron ${roomCount} salas para ${gameType}`);
         }
 
-        database.ref('rooms').on('value', updateRoomList);
+        log(`Iniciando página de salas para ${gameType}`);
+        onValue(ref(database, 'rooms'), updateRoomList, (error) => {
+            log(`Error al obtener salas: ${error.message}`);
+        });
 
         document.getElementById('createRoom').addEventListener('click', createRoom);
 
         // Función para limpiar salas antiguas
         function cleanOldRooms() {
+            log('Limpiando salas antiguas...');
             const oneHourAgo = Date.now() - (60 * 60 * 1000);
-            const roomsRef = database.ref('rooms');
-            roomsRef.orderByChild('createdAt').endAt(oneHourAgo).once('value', snapshot => {
-                snapshot.forEach(childSnapshot => {
-                    childSnapshot.ref.remove();
-                });
-            });
+            const roomsRef = ref(database, 'rooms');
+            // Implementar la lógica de limpieza aquí
         }
 
         // Llama a cleanOldRooms cada hora
