@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Salas de Juego</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            background-color: #f0f0f0;
+        }
+        .container {
+            background-color: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            text-align: center;
+            max-width: 600px;
+            width: 100%;
+        }
+        h1 {
+            color: #333;
+        }
+        .room-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+            gap: 10px;
+            margin-top: 20px;
+        }
+        .room {
+            padding: 10px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: opacity 0.3s;
+        }
+        .room:hover {
+            opacity: 0.8;
+        }
+        .room.free {
+            background-color: #4CAF50;
+            color: white;
+        }
+        .room.occupied {
+            background-color: #f44336;
+            color: white;
+        }
+        .create-room {
+            margin-top: 20px;
+            padding: 10px 20px;
+            background-color: #2196F3;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        .create-room:hover {
+            background-color: #1976D2;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Salas de Juego</h1>
+        <div id="roomList" class="room-list"></div>
+        <button id="createRoom" class="create-room">Crear Nueva Sala</button>
+    </div>
+
+    <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-database-compat.js"></script>
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyDkO_ofuhpY2q1VWcJlZw-tMeIGeMkN4aw",
+            authDomain: "aaaa-39448.firebaseapp.com",
+            projectId: "aaaa-39448",
+            storageBucket: "aaaa-39448.appspot.com",
+            messagingSenderId: "56086769891",
+            appId: "1:56086769891:web:213eaee122bc094ff895d6",
+            measurementId: "G-K5GBENTRK3",
+            databaseURL: "https://aaaa-39448-default-rtdb.firebaseio.com"
+        };
+
+        firebase.initializeApp(firebaseConfig);
+        const database = firebase.database();
+
+        const urlParams = new URLSearchParams(window.location.search);
+        const gameType = urlParams.get('game');
+
+        function generateRoomCode() {
+            const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+            let result = '';
+            for (let i = 0; i < 4; i++) {
+                result += characters.charAt(Math.floor(Math.random() * characters.length));
+            }
+            return result;
+        }
+
+        function createRoom() {
+            const roomCode = generateRoomCode();
+            const newRoomRef = database.ref('rooms').push();
+            newRoomRef.set({
+                gameType: gameType,
+                code: roomCode,
+                players: 1,
+                status: 'waiting',
+                createdAt: firebase.database.ServerValue.TIMESTAMP
+            }).then(() => {
+                window.location.href = `${gameType}.html?room=${newRoomRef.key}`;
+            });
+        }
+
+        function joinRoom(roomKey) {
+            database.ref('rooms/' + roomKey).update({
+                players: 2,
+                status: 'full'
+            }).then(() => {
+                window.location.href = `${gameType}.html?room=${roomKey}`;
+            });
+        }
+
+        function updateRoomList(snapshot) {
+            const roomList = document.getElementById('roomList');
+            roomList.innerHTML = '';
+            snapshot.forEach(childSnapshot => {
+                const roomData = childSnapshot.val();
+                if (roomData.gameType === gameType) {
+                    const roomElement = document.createElement('div');
+                    roomElement.className = `room ${roomData.status === 'waiting' ? 'free' : 'occupied'}`;
+                    roomElement.textContent = roomData.code;
+                    if (roomData.status === 'waiting') {
+                        roomElement.onclick = () => joinRoom(childSnapshot.key);
+                    }
+                    roomList.appendChild(roomElement);
+                }
+            });
+        }
+
+        database.ref('rooms').on('value', updateRoomList);
+
+        document.getElementById('createRoom').addEventListener('click', createRoom);
+
+        // Función para limpiar salas antiguas
+        function cleanOldRooms() {
+            const oneHourAgo = Date.now() - (60 * 60 * 1000);
+            const roomsRef = database.ref('rooms');
+            roomsRef.orderByChild('createdAt').endAt(oneHourAgo).once('value', snapshot => {
+                snapshot.forEach(childSnapshot => {
+                    childSnapshot.ref.remove();
+                });
+            });
+        }
+
+        // Llama a cleanOldRooms cada hora
+        setInterval(cleanOldRooms, 60 * 60 * 1000);
+    </script>
+</body>
+</html>
