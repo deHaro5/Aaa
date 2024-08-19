@@ -5,7 +5,49 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Juegos Multijugador Online</title>
     <style>
-        /* ... (estilos previos) ... */
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            background-color: #f0f0f0;
+        }
+        .container {
+            background-color: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+        h1 {
+            color: #333;
+        }
+        .game-list {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            margin-top: 20px;
+        }
+        .game-button {
+            background-color: #4CAF50;
+            border: none;
+            color: white;
+            padding: 15px 32px;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 16px;
+            margin: 4px 2px;
+            cursor: pointer;
+            border-radius: 5px;
+            transition: background-color 0.3s;
+        }
+        .game-button:hover {
+            background-color: #45a049;
+        }
     </style>
 </head>
 <body>
@@ -24,7 +66,14 @@
         import { getDatabase, ref, push, set } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-database.js";
 
         const firebaseConfig = {
-            // ... (configuración de Firebase) ...
+            apiKey: "AIzaSyDkO_ofuhpY2q1VWcJlZw-tMeIGeMkN4aw",
+            authDomain: "aaaa-39448.firebaseapp.com",
+            databaseURL: "https://aaaa-39448-default-rtdb.europe-west1.firebasedatabase.app",
+            projectId: "aaaa-39448",
+            storageBucket: "aaaa-39448.appspot.com",
+            messagingSenderId: "56086769891",
+            appId: "1:56086769891:web:213eaee122bc094ff895d6",
+            measurementId: "G-K5GBENTRK3"
         };
 
         const app = initializeApp(firebaseConfig);
@@ -39,6 +88,19 @@
             return result;
         }
 
+        function getMaxPlayers(gameType) {
+            switch (gameType) {
+                case 'ppt':
+                case 'adivina':
+                case 'hockey':
+                    return 2;
+                case 'ahorcado':
+                    return 10;
+                default:
+                    return 2;
+            }
+        }
+
         document.querySelectorAll('.game-button').forEach(button => {
             button.addEventListener('click', function(e) {
                 e.preventDefault();
@@ -48,11 +110,12 @@
                 set(newRoomRef, {
                     gameType: gameType,
                     code: roomCode,
-                    players: 1,
+                    players: {},
                     status: 'waiting',
+                    maxPlayers: getMaxPlayers(gameType),
                     createdAt: Date.now()
                 }).then(() => {
-                    window.location.href = `${gameType}.html?room=${newRoomRef.key}`;
+                    window.location.href = `rooms.html?game=${gameType}`;
                 });
             });
         });
