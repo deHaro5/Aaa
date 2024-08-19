@@ -129,7 +129,7 @@
             set(newRoomRef, {
                 gameType: gameType,
                 code: roomCode,
-                players: 1,
+                players: {},
                 status: 'waiting',
                 createdAt: serverTimestamp()
             }).then(() => {
@@ -142,15 +142,37 @@
 
         function joinRoom(roomKey) {
             log(`Uniéndose a la sala ${roomKey}...`);
-            update(ref(database, 'rooms/' + roomKey), {
-                players: 2,
-                status: 'full'
-            }).then(() => {
-                log('Unido a la sala con éxito');
-                window.location.href = `${gameType}.html?room=${roomKey}`;
-            }).catch(error => {
-                log(`Error al unirse a la sala: ${error.message}`);
+            get(ref(database, `rooms/${roomKey}/players`)).then((snapshot) => {
+                const players = snapshot.val() || {};
+                const playerCount = Object.keys(players).length;
+                
+                if (playerCount >= getMaxPlayers(gameType)) {
+                    log('La sala está llena. No se puede unir.');
+                    return;
+                }
+
+                update(ref(database, `rooms/${roomKey}`), {
+                    status: playerCount + 1 >= getMaxPlayers(gameType) ? 'full' : 'waiting'
+                }).then(() => {
+                    log('Unido a la sala con éxito');
+                    window.location.href = `${gameType}.html?room=${roomKey}`;
+                }).catch(error => {
+                    log(`Error al unirse a la sala: ${error.message}`);
+                });
             });
+        }
+
+        function getMaxPlayers(gameType) {
+            switch (gameType) {
+                case 'ppt':
+                case 'adivina':
+                case 'hockey':
+                    return 2;
+                case 'ahorcado':
+                    return 10;
+                default:
+                    return 2;
+            }
         }
 
         function updateRoomList(snapshot) {
@@ -164,7 +186,7 @@
                     roomCount++;
                     const roomElement = document.createElement('div');
                     roomElement.className = `room ${roomData.status === 'waiting' ? 'free' : 'occupied'}`;
-                    roomElement.textContent = roomData.code;
+                    roomElement.textContent = `Sala ${roomData.code}`;
                     if (roomData.status === 'waiting') {
                         roomElement.onclick = () => joinRoom(childSnapshot.key);
                     }
@@ -200,4 +222,4 @@
         setInterval(cleanOldRooms, 60 * 60 * 1000);
     </script>
 </body>
-</html> 
+</html>
