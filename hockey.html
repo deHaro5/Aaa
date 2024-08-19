@@ -3,92 +3,100 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hockey 1 vs 1</title>
+    <title>Hockey 1 vs 1 - Edición Pro</title>
     <style>
+        :root {
+            --primary-color: #4CAF50;
+            --secondary-color: #2196F3;
+            --background-color: #f0f0f0;
+            --text-color: #333;
+            --rink-color: #e0f0ff;
+        }
         body {
-            font-family: Arial, sans-serif;
+            font-family: 'Arial', sans-serif;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
             min-height: 100vh;
             margin: 0;
-            background-color: #f0f0f0;
+            background-color: var(--background-color);
+            color: var(--text-color);
         }
         #game, #lobby {
             background-color: white;
-            border-radius: 10px;
+            border-radius: 15px;
             padding: 20px;
             text-align: center;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            box-shadow: 0 8px 16px rgba(0,0,0,0.1);
             max-width: 800px;
             width: 100%;
+            transition: all 0.3s ease;
         }
         #rink {
             width: 100%;
-            height: 300px;
-            background-color: #e0f0ff;
+            height: 400px;
+            background-color: var(--rink-color);
             position: relative;
-            border: 2px solid #000;
+            border: 4px solid #000;
+            border-radius: 10px;
             margin-top: 20px;
+            overflow: hidden;
         }
         .player {
-            width: 20px;
-            height: 20px;
+            width: 30px;
+            height: 30px;
             border-radius: 50%;
             position: absolute;
+            transition: all 0.1s ease;
         }
-        #player1 {
-            background-color: red;
-            left: 10px;
-            top: 140px;
-        }
-        #player2 {
-            background-color: blue;
-            right: 10px;
-            top: 140px;
-        }
+        #player1 { background-color: #ff4136; }
+        #player2 { background-color: #0074D9; }
         #puck {
-            width: 10px;
-            height: 10px;
+            width: 15px;
+            height: 15px;
             background-color: black;
             border-radius: 50%;
             position: absolute;
-            left: 395px;
-            top: 145px;
+            transition: all 0.05s ease;
         }
         .goal {
-            width: 5px;
-            height: 60px;
+            width: 10px;
+            height: 80px;
             background-color: #888;
             position: absolute;
-            top: 120px;
+            top: 160px;
         }
         #goal1 { left: 0; }
         #goal2 { right: 0; }
         button {
             font-size: 18px;
             margin: 10px;
-            padding: 10px 20px;
+            padding: 12px 24px;
             cursor: pointer;
             border: none;
             border-radius: 5px;
-            background-color: #4CAF50;
+            background-color: var(--primary-color);
             color: white;
-            transition: background-color 0.3s;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            font-weight: bold;
         }
         button:hover {
             background-color: #45a049;
+            transform: translateY(-2px);
         }
         #roomCode {
             font-size: 24px;
             font-weight: bold;
             margin-bottom: 20px;
+            color: var(--secondary-color);
         }
         #score, #timer {
-            font-size: 20px;
+            font-size: 24px;
             font-weight: bold;
             margin: 10px 0;
+            color: var(--primary-color);
         }
         #controls {
             display: flex;
@@ -96,63 +104,102 @@
             margin-top: 20px;
         }
         .control-button {
-            width: 80px;
-            height: 80px;
-            font-size: 24px;
+            width: 100px;
+            height: 100px;
+            font-size: 36px;
             display: flex;
             align-items: center;
             justify-content: center;
-            background-color: #2196F3;
+            background-color: var(--secondary-color);
+            border-radius: 50%;
         }
         .room-list {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-            gap: 10px;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 15px;
             margin-top: 20px;
         }
         .room {
-            padding: 10px;
-            border-radius: 5px;
+            padding: 15px;
+            border-radius: 8px;
             cursor: pointer;
-            transition: opacity 0.3s;
+            transition: all 0.3s ease;
+            font-weight: bold;
         }
         .room:hover {
-            opacity: 0.8;
+            transform: translateY(-5px);
         }
         .room.free {
-            background-color: #4CAF50;
+            background-color: var(--primary-color);
             color: white;
         }
         .room.occupied {
             background-color: #f44336;
             color: white;
         }
+        #gameInfo {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        #playerInfo {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+        }
+        .player-name {
+            font-weight: bold;
+            font-size: 18px;
+        }
+        #chatBox {
+            height: 150px;
+            overflow-y: auto;
+            border: 1px solid #ccc;
+            padding: 10px;
+            margin-bottom: 10px;
+            text-align: left;
+        }
+        #chatInput {
+            width: calc(100% - 110px);
+            padding: 10px;
+            margin-right: 10px;
+        }
+        #sendMessage {
+            width: 100px;
+        }
         @media (max-width: 600px) {
             #rink {
-                height: 200px;
+                height: 300px;
             }
             .control-button {
-                width: 60px;
-                height: 60px;
-                font-size: 18px;
+                width: 80px;
+                height: 80px;
+                font-size: 24px;
             }
         }
     </style>
 </head>
 <body>
     <div id="lobby">
-        <h1>Salas de Hockey 1 vs 1</h1>
+        <h1>Hockey 1 vs 1 - Lobby</h1>
         <div id="roomList" class="room-list"></div>
         <button id="createRoom" class="create-room">Crear Nueva Sala</button>
-        <button onclick="goBack()" style="margin-top: 20px;">Volver al menú principal</button>
+        <button onclick="goBack()">Volver al menú principal</button>
     </div>
     <div id="game" style="display:none;">
         <div id="roomCode"></div>
         <h1>Hockey 1 vs 1</h1>
+        <div id="gameInfo">
+            <div id="score">Jugador 1: 0 - 0 :Jugador 2</div>
+            <div id="timer">Tiempo: 2:00</div>
+        </div>
+        <div id="playerInfo">
+            <span class="player-name" id="player1Name">Jugador 1</span>
+            <span class="player-name" id="player2Name">Jugador 2</span>
+        </div>
         <div id="status">Esperando al otro jugador...</div>
         <button id="startGame" style="display:none;">Iniciar Partida</button>
-        <div id="score">Jugador 1: 0 - 0 :Jugador 2</div>
-        <div id="timer">Tiempo: 2:00</div>
         <div id="rink">
             <div id="player1" class="player"></div>
             <div id="player2" class="player"></div>
@@ -165,7 +212,10 @@
             <button id="moveRight" class="control-button">→</button>
             <button id="shoot" class="control-button">🏒</button>
         </div>
-        <button onclick="leaveGame()" style="margin-top: 20px;">Salir del juego</button>
+        <div id="chatBox"></div>
+        <input type="text" id="chatInput" placeholder="Escribe un mensaje...">
+        <button id="sendMessage">Enviar</button>
+        <button onclick="leaveGame()">Salir del juego</button>
     </div>
 
     <script type="module">
@@ -190,6 +240,15 @@
         let playerNumber;
         let gameInterval;
         let timeLeft = 120; // 2 minutos
+        let playerName = "Jugador " + Math.floor(Math.random() * 1000);
+        let gameLoop;
+
+        const RINK_WIDTH = 800;
+        const RINK_HEIGHT = 400;
+        const PLAYER_SIZE = 30;
+        const PUCK_SIZE = 15;
+        const GOAL_WIDTH = 10;
+        const GOAL_HEIGHT = 80;
 
         function showLobby() {
             document.getElementById('lobby').style.display = 'block';
@@ -209,7 +268,7 @@
                 if (roomData.gameType === 'hockey' && roomData.status === 'waiting') {
                     const roomElement = document.createElement('div');
                     roomElement.className = 'room free';
-                    roomElement.textContent = roomData.code;
+                    roomElement.textContent = `Sala ${roomData.code}`;
                     roomElement.onclick = () => joinRoom(childSnapshot.key);
                     roomList.appendChild(roomElement);
                 }
@@ -229,7 +288,8 @@
                 code: roomCode,
                 players: 1,
                 status: 'waiting',
-                createdAt: Date.now()
+                createdAt: Date.now(),
+                player1Name: playerName
             }).then(() => {
                 showGame();
                 initializeRoom(roomId);
@@ -240,7 +300,8 @@
             roomId = joinRoomId;
             update(ref(database, `rooms/${roomId}`), {
                 players: 2,
-                status: 'full'
+                status: 'full',
+                player2Name: playerName
             }).then(() => {
                 showGame();
                 initializeRoom(roomId);
@@ -269,7 +330,23 @@
                     if (data.playerPositions) {
                         updatePlayerPositions(data.playerPositions);
                     }
+                    if (data.player1Name && data.player2Name) {
+                        document.getElementById('player1Name').textContent = data.player1Name;
+                        document.getElementById('player2Name').textContent = data.player2Name;
+                    }
                 }
+            });
+
+            onValue(ref(database, `rooms/${roomId}/chat`), (snapshot) => {
+                const chatBox = document.getElementById('chatBox');
+                chatBox.innerHTML = '';
+                snapshot.forEach((childSnapshot) => {
+                    const message = childSnapshot.val();
+                    const messageElement = document.createElement('div');
+                    messageElement.textContent = `${message.sender}: ${message.text}`;
+                    chatBox.appendChild(messageElement);
+                });
+                chatBox.scrollTop = chatBox.scrollHeight;
             });
         }
 
@@ -286,13 +363,14 @@
             update(ref(database, `rooms/${roomId}`), { 
                 gameStarted: true, 
                 score: {player1: 0, player2: 0},
-                puckPosition: {x: 395, y: 145},
+                puckPosition: {x: RINK_WIDTH / 2, y: RINK_HEIGHT / 2},
                 playerPositions: {
-                    player1: {x: 10, y: 140},
-                    player2: {x: 770, y: 140}
+                    player1: {x: 50, y: RINK_HEIGHT / 2 - PLAYER_SIZE / 2},
+                    player2: {x: RINK_WIDTH - 50 - PLAYER_SIZE, y: RINK_HEIGHT / 2 - PLAYER_SIZE / 2}
                 }
             });
             startTimer();
+            startGameLoop();
         });
 
         function initializeGame() {
@@ -302,20 +380,14 @@
             if (!playerNumber) {
                 get(ref(database, `rooms/${roomId}`)).then((snapshot) => {
                     const data = snapshot.val();
-                    playerNumber = data.player1Connected ? 2 : 1;
+                    playerNumber = data.player1Name === playerName ? 1 : 2;
                     update(ref(database, `rooms/${roomId}`), { [`player${playerNumber}Connected`]: true });
                 });
             }
         }
 
         function updateScoreDisplay(score) {
-            document.getElementById('score').textContent = `Jugador 1: ${score.player1} - ${score.player2} :Jugador 2`;
-        }
-
-        function updatePuckPosition(position) {
-            const puck = document.getElementById('puck');
-            puck.style.left = `${position.x}px`;
-            puck.style.top = `${position.y}px`;
+            document.getElementById('score').textContent = `${score.player1} - ${score.player2}`;
         }
 
         function updatePlayerPositions(positions) {
@@ -327,24 +399,29 @@
             player2.style.top = `${positions.player2.y}px`;
         }
 
-        document.getElementById('moveLeft').addEventListener('click', () => movePlayer('left'));
-        document.getElementById('moveRight').addEventListener('click', () => movePlayer('right'));
-        document.getElementById('shoot').addEventListener('click', shootPuck);
+        document.getElementById('moveLeft').addEventListener('touchstart', () => movePlayer('left'));
+        document.getElementById('moveRight').addEventListener('touchstart', () => movePlayer('right'));
+        document.getElementById('shoot').addEventListener('touchstart', shootPuck);
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowLeft') movePlayer('left');
+            if (e.key === 'ArrowRight') movePlayer('right');
+            if (e.key === ' ') shootPuck();
+        });
 
         function movePlayer(direction) {
             get(ref(database, `rooms/${roomId}/playerPositions`)).then((snapshot) => {
                 const positions = snapshot.val();
                 const player = `player${playerNumber}`;
-                const step = 10;
-                const rinkWidth = 800; // Ancho total de la pista
+                const step = 15;
 
                 if (direction === 'left' && positions[player].x > 0) {
-                    positions[player].x -= step;
-                } else if (direction === 'right' && positions[player].x < rinkWidth - 20) {
-                    positions[player].x += step;
+                    positions[player].x = Math.max(0, positions[player].x - step);
+                } else if (direction === 'right' && positions[player].x < RINK_WIDTH - PLAYER_SIZE) {
+                    positions[player].x = Math.min(RINK_WIDTH - PLAYER_SIZE, positions[player].x + step);
                 }
 
-                update(ref(database, `rooms/${roomId}/playerPositions`), positions);
+                update(ref(database, `rooms/${roomId}/playerPositions/${player}`), positions[player]);
             });
         }
 
@@ -356,41 +433,93 @@
                 
                 const distance = Math.sqrt(Math.pow(puckPosition.x - playerPosition.x, 2) + Math.pow(puckPosition.y - playerPosition.y, 2));
                 
-                if (distance < 30) { // Si el jugador está cerca del disco
+                if (distance < PLAYER_SIZE + PUCK_SIZE) {
                     const direction = playerNumber === 1 ? 1 : -1;
-                    const newPuckPosition = {
-                        x: puckPosition.x + direction * 50,
-                        y: puckPosition.y + (Math.random() - 0.5) * 20
-                    };
-                    
-                    update(ref(database, `rooms/${roomId}/puckPosition`), newPuckPosition);
-                    checkGoal(newPuckPosition);
+                    const speed = 10;
+                    const angle = (Math.random() - 0.5) * Math.PI / 2; // Random angle between -45 and 45 degrees
+
+                    const velocityX = direction * speed * Math.cos(angle);
+                    const velocityY = speed * Math.sin(angle);
+
+                    update(ref(database, `rooms/${roomId}/puckVelocity`), { x: velocityX, y: velocityY });
                 }
             });
         }
 
-        function checkGoal(puckPosition) {
-            if (puckPosition.x <= 5 && puckPosition.y > 120 && puckPosition.y < 180) {
-                scoreGoal('player2');
-            } else if (puckPosition.x >= 795 && puckPosition.y > 120 && puckPosition.y < 180) {
-                scoreGoal('player1');
-            }
+        function startGameLoop() {
+            gameLoop = setInterval(() => {
+                get(ref(database, `rooms/${roomId}`)).then((snapshot) => {
+                    const data = snapshot.val();
+                    if (data.puckPosition && data.puckVelocity) {
+                        const newPosition = {
+                            x: data.puckPosition.x + data.puckVelocity.x,
+                            y: data.puckPosition.y + data.puckVelocity.y
+                        };
+
+                        // Bounce off walls
+                        if (newPosition.y <= 0 || newPosition.y >= RINK_HEIGHT - PUCK_SIZE) {
+                            data.puckVelocity.y *= -1;
+                            newPosition.y = Math.max(0, Math.min(RINK_HEIGHT - PUCK_SIZE, newPosition.y));
+                        }
+
+                        // Check for goals
+                        if (newPosition.x <= GOAL_WIDTH && newPosition.y > RINK_HEIGHT / 2 - GOAL_HEIGHT / 2 && newPosition.y < RINK_HEIGHT / 2 + GOAL_HEIGHT / 2) {
+                            scoreGoal('player2');
+                            resetPuck();
+                        } else if (newPosition.x >= RINK_WIDTH - GOAL_WIDTH - PUCK_SIZE && newPosition.y > RINK_HEIGHT / 2 - GOAL_HEIGHT / 2 && newPosition.y < RINK_HEIGHT / 2 + GOAL_HEIGHT / 2) {
+                            scoreGoal('player1');
+                            resetPuck();
+                        } else {
+                            // Apply friction
+                            data.puckVelocity.x *= 0.99;
+                            data.puckVelocity.y *= 0.99;
+
+                            update(ref(database, `rooms/${roomId}`), {
+                                puckPosition: newPosition,
+                                puckVelocity: data.puckVelocity
+                            });
+                        }
+                    }
+                });
+            }, 1000 / 60); // 60 FPS
+        }
+
+        function resetPuck() {
+            update(ref(database, `rooms/${roomId}`), {
+                puckPosition: { x: RINK_WIDTH / 2, y: RINK_HEIGHT / 2 },
+                puckVelocity: { x: 0, y: 0 }
+            });
         }
 
         function scoreGoal(scoringPlayer) {
             get(ref(database, `rooms/${roomId}/score`)).then((snapshot) => {
                 const score = snapshot.val();
                 score[scoringPlayer]++;
-                update(ref(database, `rooms/${roomId}`), { 
-                    score: score,
-                    puckPosition: {x: 395, y: 145}
-                });
+                update(ref(database, `rooms/${roomId}/score`), score);
+                showGoalAnimation(scoringPlayer);
             });
+        }
+
+        function showGoalAnimation(scoringPlayer) {
+            const goalMessage = document.createElement('div');
+            goalMessage.textContent = '¡GOL!';
+            goalMessage.style.position = 'absolute';
+            goalMessage.style.top = '50%';
+            goalMessage.style.left = '50%';
+            goalMessage.style.transform = 'translate(-50%, -50%)';
+            goalMessage.style.fontSize = '72px';
+            goalMessage.style.color = scoringPlayer === 'player1' ? '#ff4136' : '#0074D9';
+            goalMessage.style.textShadow = '2px 2px 4px rgba(0,0,0,0.5)';
+            document.getElementById('rink').appendChild(goalMessage);
+
+            setTimeout(() => {
+                goalMessage.remove();
+            }, 2000);
         }
 
         function startTimer() {
             gameInterval = setInterval(() => {
-timeLeft--;
+                timeLeft--;
                 updateTimerDisplay();
                 if (timeLeft <= 0) {
                     endGame();
@@ -401,24 +530,42 @@ timeLeft--;
         function updateTimerDisplay() {
             const minutes = Math.floor(timeLeft / 60);
             const seconds = timeLeft % 60;
-            document.getElementById('timer').textContent = `Tiempo: ${minutes}:${seconds.toString().padStart(2, '0')}`;
+            document.getElementById('timer').textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
         }
 
         function endGame() {
             clearInterval(gameInterval);
+            clearInterval(gameLoop);
             get(ref(database, `rooms/${roomId}`)).then((snapshot) => {
                 const data = snapshot.val();
                 const score = data.score;
                 let winner = 'Empate';
                 if (score.player1 > score.player2) {
-                    winner = 'Jugador 1';
+                    winner = data.player1Name;
                 } else if (score.player2 > score.player1) {
-                    winner = 'Jugador 2';
+                    winner = data.player2Name;
                 }
                 document.getElementById('status').textContent = `Juego terminado. Ganador: ${winner}`;
                 document.getElementById('status').style.display = 'block';
                 document.getElementById('controls').style.display = 'none';
+                showEndGameAnimation(winner);
             });
+        }
+
+        function showEndGameAnimation(winner) {
+            const endGameMessage = document.createElement('div');
+            endGameMessage.textContent = `¡${winner} ha ganado el juego!`;
+            endGameMessage.style.position = 'absolute';
+            endGameMessage.style.top = '50%';
+            endGameMessage.style.left = '50%';
+            endGameMessage.style.transform = 'translate(-50%, -50%)';
+            endGameMessage.style.fontSize = '36px';
+            endGameMessage.style.color = '#4CAF50';
+            endGameMessage.style.textShadow = '2px 2px 4px rgba(0,0,0,0.5)';
+            endGameMessage.style.backgroundColor = 'rgba(255,255,255,0.8)';
+            endGameMessage.style.padding = '20px';
+            endGameMessage.style.borderRadius = '10px';
+            document.getElementById('rink').appendChild(endGameMessage);
         }
 
         window.goBack = function() {
@@ -427,12 +574,33 @@ timeLeft--;
 
         window.leaveGame = function() {
             clearInterval(gameInterval);
+            clearInterval(gameLoop);
             if (roomId) {
                 remove(ref(database, `rooms/${roomId}`)).then(() => {
                     window.location.href = 'index.html';
                 });
             } else {
                 window.location.href = 'index.html';
+            }
+        }
+
+        document.getElementById('sendMessage').addEventListener('click', sendChatMessage);
+        document.getElementById('chatInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                sendChatMessage();
+            }
+        });
+
+        function sendChatMessage() {
+            const chatInput = document.getElementById('chatInput');
+            const message = chatInput.value.trim();
+            if (message) {
+                push(ref(database, `rooms/${roomId}/chat`), {
+                    sender: playerName,
+                    text: message,
+                    timestamp: Date.now()
+                });
+                chatInput.value = '';
             }
         }
 
@@ -444,7 +612,6 @@ timeLeft--;
             }
         });
 
-        // Inicialmente, mostramos el lobby
         showLobby();
     </script>
 </body>
