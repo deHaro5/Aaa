@@ -15,7 +15,7 @@
             margin: 0;
             background-color: #f0f0f0;
         }
-        #game {
+        #game, #lobby {
             background-color: white;
             border-radius: 10px;
             padding: 20px;
@@ -104,6 +104,29 @@
             justify-content: center;
             background-color: #2196F3;
         }
+        .room-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+            gap: 10px;
+            margin-top: 20px;
+        }
+        .room {
+            padding: 10px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: opacity 0.3s;
+        }
+        .room:hover {
+            opacity: 0.8;
+        }
+        .room.free {
+            background-color: #4CAF50;
+            color: white;
+        }
+        .room.occupied {
+            background-color: #f44336;
+            color: white;
+        }
         @media (max-width: 600px) {
             #rink {
                 height: 200px;
@@ -117,7 +140,13 @@
     </style>
 </head>
 <body>
-    <div id="game">
+    <div id="lobby">
+        <h1>Salas de Hockey 1 vs 1</h1>
+        <div id="roomList" class="room-list"></div>
+        <button id="createRoom" class="create-room">Crear Nueva Sala</button>
+        <button onclick="goBack()" style="margin-top: 20px;">Volver al menú principal</button>
+    </div>
+    <div id="game" style="display:none;">
         <div id="roomCode"></div>
         <h1>Hockey 1 vs 1</h1>
         <div id="status">Esperando al otro jugador...</div>
@@ -136,12 +165,12 @@
             <button id="moveRight" class="control-button">→</button>
             <button id="shoot" class="control-button">🏒</button>
         </div>
-        <button onclick="goBack()" style="margin-top: 20px;">Volver al menú principal</button>
+        <button onclick="leaveGame()" style="margin-top: 20px;">Salir del juego</button>
     </div>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js";
-        import { getDatabase, ref, onValue, set, update, get } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-database.js";
+        import { getDatabase, ref, onValue, set, update, get, push, remove } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-database.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyDkO_ofuhpY2q1VWcJlZw-tMeIGeMkN4aw",
@@ -157,39 +186,104 @@
         const app = initializeApp(firebaseConfig);
         const database = getDatabase(app);
 
-        const urlParams = new URLSearchParams(window.location.search);
-        const roomId = urlParams.get('room');
-        const roomRef = ref(database, 'rooms/' + roomId);
-
+        let roomId;
         let playerNumber;
         let gameInterval;
         let timeLeft = 120; // 2 minutos
 
-        onValue(roomRef, (snapshot) => {
-            const data = snapshot.val();
-            if (data) {
-                document.getElementById('roomCode').textContent = `Código de sala: ${data.code}`;
-                if (data.players === 2 && !data.gameStarted) {
-                    document.getElementById('status').textContent = 'Ambos jugadores conectados. Listo para iniciar.';
-                    document.getElementById('startGame').style.display = 'block';
+        function showLobby() {
+            document.getElementById('lobby').style.display = 'block';
+            document.getElementById('game').style.display = 'none';
+        }
+
+        function showGame() {
+            document.getElementById('lobby').style.display = 'none';
+            document.getElementById('game').style.display = 'block';
+        }
+
+        function updateRoomList(snapshot) {
+            const roomList = document.getElementById('roomList');
+            roomList.innerHTML = '';
+            snapshot.forEach(childSnapshot => {
+                const roomData = childSnapshot.val();
+                if (roomData.gameType === 'hockey' && roomData.status === 'waiting') {
+                    const roomElement = document.createElement('div');
+                    roomElement.className = 'room free';
+                    roomElement.textContent = roomData.code;
+                    roomElement.onclick = () => joinRoom(childSnapshot.key);
+                    roomList.appendChild(roomElement);
                 }
-                if (data.gameStarted) {
-                    initializeGame();
+            });
+        }
+
+        onValue(ref(database, 'rooms'), updateRoomList);
+
+        document.getElementById('createRoom').addEventListener('click', createRoom);
+
+        function createRoom() {
+            const newRoomRef = push(ref(database, 'rooms'));
+            roomId = newRoomRef.key;
+            const roomCode = generateRoomCode();
+            set(newRoomRef, {
+                gameType: 'hockey',
+                code: roomCode,
+                players: 1,
+                status: 'waiting',
+                createdAt: Date.now()
+            }).then(() => {
+                showGame();
+                initializeRoom(roomId);
+            });
+        }
+
+        function joinRoom(joinRoomId) {
+            roomId = joinRoomId;
+            update(ref(database, `rooms/${roomId}`), {
+                players: 2,
+                status: 'full'
+            }).then(() => {
+                showGame();
+                initializeRoom(roomId);
+            });
+        }
+
+        function initializeRoom(roomId) {
+            const roomRef = ref(database, `rooms/${roomId}`);
+            onValue(roomRef, (snapshot) => {
+                const data = snapshot.val();
+                if (data) {
+                    document.getElementById('roomCode').textContent = `Código de sala: ${data.code}`;
+                    if (data.players === 2 && !data.gameStarted) {
+                        document.getElementById('status').textContent = 'Ambos jugadores conectados. Listo para iniciar.';
+                        document.getElementById('startGame').style.display = 'block';
+                    }
+                    if (data.gameStarted) {
+                        initializeGame();
+                    }
+                    if (data.score) {
+                        updateScoreDisplay(data.score);
+                    }
+                    if (data.puckPosition) {
+                        updatePuckPosition(data.puckPosition);
+                    }
+                    if (data.playerPositions) {
+                        updatePlayerPositions(data.playerPositions);
+                    }
                 }
-                if (data.score) {
-                    updateScoreDisplay(data.score);
-                }
-                if (data.puckPosition) {
-                    updatePuckPosition(data.puckPosition);
-                }
-                if (data.playerPositions) {
-                    updatePlayerPositions(data.playerPositions);
-                }
+            });
+        }
+
+        function generateRoomCode() {
+            const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+            let result = '';
+            for (let i = 0; i < 4; i++) {
+                result += characters.charAt(Math.floor(Math.random() * characters.length));
             }
-        });
+            return result;
+        }
 
         document.getElementById('startGame').addEventListener('click', () => {
-            update(roomRef, { 
+            update(ref(database, `rooms/${roomId}`), { 
                 gameStarted: true, 
                 score: {player1: 0, player2: 0},
                 puckPosition: {x: 395, y: 145},
@@ -206,10 +300,10 @@
             document.getElementById('startGame').style.display = 'none';
             document.getElementById('controls').style.display = 'flex';
             if (!playerNumber) {
-                get(roomRef).then((snapshot) => {
+                get(ref(database, `rooms/${roomId}`)).then((snapshot) => {
                     const data = snapshot.val();
                     playerNumber = data.player1Connected ? 2 : 1;
-                    update(roomRef, { [`player${playerNumber}Connected`]: true });
+                    update(ref(database, `rooms/${roomId}`), { [`player${playerNumber}Connected`]: true });
                 });
             }
         }
@@ -238,9 +332,8 @@
         document.getElementById('shoot').addEventListener('click', shootPuck);
 
         function movePlayer(direction) {
-            get(roomRef).then((snapshot) => {
-                const data = snapshot.val();
-                const positions = data.playerPositions;
+            get(ref(database, `rooms/${roomId}/playerPositions`)).then((snapshot) => {
+                const positions = snapshot.val();
                 const player = `player${playerNumber}`;
                 const step = 10;
                 const rinkWidth = 800; // Ancho total de la pista
@@ -256,7 +349,7 @@
         }
 
         function shootPuck() {
-            get(roomRef).then((snapshot) => {
+            get(ref(database, `rooms/${roomId}`)).then((snapshot) => {
                 const data = snapshot.val();
                 const puckPosition = data.puckPosition;
                 const playerPosition = data.playerPositions[`player${playerNumber}`];
@@ -285,12 +378,11 @@
         }
 
         function scoreGoal(scoringPlayer) {
-            get(roomRef).then((snapshot) => {
-                const data = snapshot.val();
-                const newScore = {...data.score};
-                newScore[scoringPlayer]++;
+            get(ref(database, `rooms/${roomId}/score`)).then((snapshot) => {
+                const score = snapshot.val();
+                score[scoringPlayer]++;
                 update(ref(database, `rooms/${roomId}`), { 
-                    score: newScore,
+                    score: score,
                     puckPosition: {x: 395, y: 145}
                 });
             });
@@ -298,7 +390,7 @@
 
         function startTimer() {
             gameInterval = setInterval(() => {
-                timeLeft--;
+timeLeft--;
                 updateTimerDisplay();
                 if (timeLeft <= 0) {
                     endGame();
@@ -314,7 +406,7 @@
 
         function endGame() {
             clearInterval(gameInterval);
-            get(roomRef).then((snapshot) => {
+            get(ref(database, `rooms/${roomId}`)).then((snapshot) => {
                 const data = snapshot.val();
                 const score = data.score;
                 let winner = 'Empate';
@@ -330,19 +422,30 @@
         }
 
         window.goBack = function() {
+            window.location.href = 'index.html';
+        }
+
+        window.leaveGame = function() {
             clearInterval(gameInterval);
-            set(ref(database, `rooms/${roomId}`), null).then(() => {
+            if (roomId) {
+                remove(ref(database, `rooms/${roomId}`)).then(() => {
+                    window.location.href = 'index.html';
+                });
+            } else {
                 window.location.href = 'index.html';
-            });
+            }
         }
 
         window.addEventListener('beforeunload', () => {
-            if (playerNumber) {
+            if (playerNumber && roomId) {
                 update(ref(database, `rooms/${roomId}`), {
                     [`player${playerNumber}Connected`]: false
                 });
             }
         });
+
+        // Inicialmente, mostramos el lobby
+        showLobby();
     </script>
 </body>
 </html>
