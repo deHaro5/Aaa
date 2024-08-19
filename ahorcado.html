@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ahorcado Multijugador</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            background-color: #f0f0f0;
+        }
+        #lobby, #game {
+            background-color: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            max-width: 800px;
+            width: 100%;
+            text-align: center;
+        }
+        #game { display: none; }
+        h1 { color: #333; }
+        #playerList, #scoreboard {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        .player-card {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px;
+            border-radius: 5px;
+        }
+        #word, #guesses, #hangman {
+            font-size: 24px;
+            margin: 20px 0;
+        }
+        #keyboard {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 5px;
+            margin-top: 20px;
+        }
+        .key {
+            background-color: #2196F3;
+            color: white;
+            border: none;
+            padding: 10px;
+            font-size: 18px;
+            cursor: pointer;
+            border-radius: 5px;
+        }
+        .key:disabled {
+            background-color: #ccc;
+        }
+        #chatBox {
+            height: 150px;
+            overflow-y: auto;
+            border: 1px solid #ccc;
+            padding: 10px;
+            margin-top: 20px;
+            text-align: left;
+        }
+        #chatInput {
+            width: calc(100% - 110px);
+            padding: 10px;
+            margin-right: 10px;
+        }
+        #sendMessage {
+            width: 100px;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            border-radius: 5px;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div id="lobby">
+        <h1>Ahorcado Multijugador - Lobby</h1>
+        <div id="playerList"></div>
+        <button id="startGame">Iniciar Juego</button>
+        <button onclick="goBack()">Volver al menú principal</button>
+    </div>
+    <div id="game">
+        <h1>Ahorcado Multijugador</h1>
+        <div id="scoreboard"></div>
+        <div id="currentTurn"></div>
+        <div id="word"></div>
+        <div id="guesses"></div>
+        <div id="hangman"></div>
+        <div id="keyboard"></div>
+        <input type="text" id="wordInput" placeholder="Ingresa una palabra" style="display:none;">
+        <button id="confirmWord" style="display:none;">Confirmar Palabra</button>
+        <div id="chatBox"></div>
+        <input type="text" id="chatInput" placeholder="Escribe un mensaje...">
+        <button id="sendMessage">Enviar</button>
+        <button onclick="leaveGame()">Salir del juego</button>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js";
+        import { getDatabase, ref, onValue, set, update, get, push, remove } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-database.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyDkO_ofuhpY2q1VWcJlZw-tMeIGeMkN4aw",
+            authDomain: "aaaa-39448.firebaseapp.com",
+            databaseURL: "https://aaaa-39448-default-rtdb.europe-west1.firebasedatabase.app",
+            projectId: "aaaa-39448",
+            storageBucket: "aaaa-39448.appspot.com",
+            messagingSenderId: "56086769891",
+            appId: "1:56086769891:web:213eaee122bc094ff895d6",
+            measurementId: "G-K5GBENTRK3"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const database = getDatabase(app);
+
+        let roomId;
+        let playerName = "Jugador " + Math.floor(Math.random() * 1000);
+        let playerId;
+        let currentWord = "";
+        let guessedLetters = new Set();
+        let wrongGuesses = 0;
+        const MAX_PLAYERS = 10;
+        const MAX_WRONG_GUESSES = 6;
+
+        function showLobby() {
+            document.getElementById('lobby').style.display = 'block';
+            document.getElementById('game').style.display = 'none';
+        }
+
+        function showGame() {
+            document.getElementById('lobby').style.display = 'none';
+            document.getElementById('game').style.display = 'block';
+        }
+
+        function initializeLobby() {
+            const urlParams = new URLSearchParams(window.location.search);
+            roomId = urlParams.get('room');
+
+            if (!roomId) {
+                alert("No se proporcionó un ID de sala válido.");
+                window.location.href = 'index.html';
+                return;
+            }
+
+            const roomRef = ref(database, `rooms/${roomId}`);
+            onValue(roomRef, (snapshot) => {
+                const data = snapshot.val();
+                if (data) {
+                    updatePlayerList(data.players);
+                    if (data.gameStarted) {
+                        showGame();
+                        initializeGame();
+                    }
+                }
+            });
+
+            joinRoom();
+        }
+
+        function joinRoom() {
+            const playerRef = push(ref(database, `rooms/${roomId}/players`));
+            playerId = playerRef.key;
+            set(playerRef, {
+                name: playerName,
+                score: 0
+            });
+        }
+
+        function updatePlayerList(players) {
+            const playerList = document.getElementById('playerList');
+            playerList.innerHTML = '';
+            Object.values(players).forEach(player => {
+                const playerCard = document.createElement('div');
+                playerCard.className = 'player-card';
+                playerCard.textContent = player.name;
+                playerList.appendChild(playerCard);
+            });
+
+            const startButton = document.getElementById('startGame');
+            startButton.disabled = Object.keys(players).length < 2;
+        }
+
+        document.getElementById('startGame').addEventListener('click', () => {
+            update(ref(database, `rooms/${roomId}`), {
+                gameStarted: true,
+                currentTurn: playerId
+            });
+        });
+
+        function initializeGame() {
+            const gameRef = ref(database, `rooms/${roomId}`);
+            onValue(gameRef, (snapshot) => {
+                const data = snapshot.val();
+                if (data) {
+                    updateScoreboard(data.players);
+                    updateCurrentTurn(data.currentTurn);
+                    if (data.currentWord) {
+                        currentWord = data.currentWord;
+                        guessedLetters = new Set(data.guessedLetters || []);
+                        wrongGuesses = data.wrongGuesses || 0;
+                        updateWordDisplay();
+                        updateHangmanDisplay();
+                    } else if (data.currentTurn === playerId) {
+                        showWordInput();
+                    } else {
+                        hideWordInput();
+                    }
+                }
+            });
+
+            createKeyboard();
+        }
+
+        function updateScoreboard(players) {
+            const scoreboard = document.getElementById('scoreboard');
+            scoreboard.innerHTML = '';
+            Object.values(players).forEach(player => {
+                const scoreCard = document.createElement('div');
+                scoreCard.className = 'player-card';
+                scoreCard.textContent = `${player.name}: ${player.score}`;
+                scoreboard.appendChild(scoreCard);
+            });
+        }
+
+        function updateCurrentTurn(currentTurnId) {
+            get(ref(database, `rooms/${roomId}/players/${currentTurnId}`)).then((snapshot) => {
+                const player = snapshot.val();
+                document.getElementById('currentTurn').textContent = `Turno de: ${player.name}`;
+            });
+        }
+
+        function createKeyboard() {
+            const keyboard = document.getElementById('keyboard');
+            keyboard.innerHTML = '';
+            for (let i = 65; i <= 90; i++) {
+                const letter = String.fromCharCode(i);
+                const key = document.createElement('button');
+                key.className = 'key';
+                key.textContent = letter;
+                key.addEventListener('click', () => guessLetter(letter));
+                keyboard.appendChild(key);
+            }
+        }
+
+        function showWordInput() {
+            document.getElementById('wordInput').style.display = 'inline-block';
+            document.getElementById('confirmWord').style.display = 'inline-block';
+            document.getElementById('keyboard').style.display = 'none';
+        }
+
+        function hideWordInput() {
+            document.getElementById('wordInput').style.display = 'none';
+            document.getElementById('confirmWord').style.display = 'none';
+            document.getElementById('keyboard').style.display = 'grid';
+        }
+
+        document.getElementById('confirmWord').addEventListener('click', () => {
+            const wordInput = document.getElementById('wordInput');
+            const word = wordInput.value.toUpperCase();
+            if (word && /^[A-Z\s]+$/.test(word)) {
+                update(ref(database, `rooms/${roomId}`), {
+                    currentWord: word,
+                    guessedLetters: [],
+                    wrongGuesses: 0
+                });
+                wordInput.value = '';
+                hideWordInput();
+            } else {
+                alert("Por favor, ingresa una palabra válida (solo letras y espacios).");
+            }
+        });
+
+        function guessLetter(letter) {
+            if (!guessedLetters.has(letter)) {
+                guessedLetters.add(letter);
+                if (!currentWord.includes(letter)) {
+                    wrongGuesses++;
+                }
+                update(ref(database, `rooms/${roomId}`), {
+                    guessedLetters: Array.from(guessedLetters),
+                    wrongGuesses: wrongGuesses
+                });
+                updateWordDisplay();
+                updateHangmanDisplay();
+                checkGameStatus();
+            }
+        }
+
+        function updateWordDisplay() {
+            const wordDisplay = document.getElementById('word');
+            wordDisplay.textContent = currentWord
+                .split('')
+                .map(letter => guessedLetters.has(letter) || letter === ' ' ? letter : '_')
+                .join(' ');
+        }
+
+        function updateHangmanDisplay() {
+            const hangmanDisplay = document.getElementById('hangman');
+            const hangmanStages = [
+                '____\n|    |\n|    \n|    \n|    \n|____',
+                '____\n|    |\n|    O\n|    \n|    \n|____',
+                '____\n|    |\n|    O\n|    |\n|    \n|____',
+                '____\n|    |\n|    O\n|   /|\n|    \n|____',
+                '____\n|    |\n|    O\n|   /|\\\n|    \n|____',
+                '____\n|    |\n|    O\n|   /|\\\n|   / \n|____',
+                '____\n|    |\n|    O\n|   /|\\\n|   / \\\n|____'
+            ];
+            hangmanDisplay.textContent = hangmanStages[wrongGuesses];
+        }
+
+        function checkGameStatus() {
+            if (wrongGuesses >= MAX_WRONG_GUESSES) {
+                endRound(false);
+            } else if (!currentWord.split('').some(letter => !guessedLetters.has(letter) && letter !== ' ')) {
+                endRound(true);
+            }
+        }
+
+        function endRound(won) {
+            get(ref(database, `rooms/${roomId}`)).then((snapshot) => {
+                const data = snapshot.val();
+                const currentPlayer = data.players[data.currentTurn];
+                const nextPlayerId = getNextPlayerId(data.players, data.currentTurn);
+
+                if (won) {
+                    currentPlayer.score += calculateScore();
+                }
+
+                update(ref(database, `rooms/${roomId}`), {
+                    [`players/${data.currentTurn}/score`]: currentPlayer.score,
+                    currentTurn: nextPlayerId,
+                    currentWord: null,
+                    guessedLetters: null,
+                    wrongGuesses: 0
+                });
+
+                alert(won ? "¡Palabra adivinada correctamente!" : "¡Se acabaron los intentos!");
+            });
+        }
+
+function calculateScore() {
+            const uniqueLetters = new Set(currentWord.replace(/\s/g, '')).size;
+            return Math.max(10, uniqueLetters * 5 - wrongGuesses * 2);
+        }
+
+        function getNextPlayerId(players, currentPlayerId) {
+            const playerIds = Object.keys(players);
+            const currentIndex = playerIds.indexOf(currentPlayerId);
+            return playerIds[(currentIndex + 1) % playerIds.length];
+        }
+
+        document.getElementById('sendMessage').addEventListener('click', sendChatMessage);
+        document.getElementById('chatInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                sendChatMessage();
+            }
+        });
+
+        function sendChatMessage() {
+            const chatInput = document.getElementById('chatInput');
+            const message = chatInput.value.trim();
+            if (message) {
+                push(ref(database, `rooms/${roomId}/chat`), {
+                    sender: playerName,
+                    text: message,
+                    timestamp: Date.now()
+                });
+                chatInput.value = '';
+            }
+        }
+
+        onValue(ref(database, `rooms/${roomId}/chat`), (snapshot) => {
+            const chatBox = document.getElementById('chatBox');
+            chatBox.innerHTML = '';
+            snapshot.forEach((childSnapshot) => {
+                const message = childSnapshot.val();
+                const messageElement = document.createElement('div');
+                messageElement.textContent = `${message.sender}: ${message.text}`;
+                chatBox.appendChild(messageElement);
+            });
+            chatBox.scrollTop = chatBox.scrollHeight;
+        });
+
+        window.goBack = function() {
+            leaveRoom();
+            window.location.href = 'index.html';
+        }
+
+        window.leaveGame = function() {
+            leaveRoom();
+            window.location.href = 'index.html';
+        }
+
+        function leaveRoom() {
+            if (roomId && playerId) {
+                remove(ref(database, `rooms/${roomId}/players/${playerId}`));
+                get(ref(database, `rooms/${roomId}/players`)).then((snapshot) => {
+                    if (!snapshot.exists()) {
+                        remove(ref(database, `rooms/${roomId}`));
+                    }
+                });
+            }
+        }
+
+        window.addEventListener('beforeunload', leaveRoom);
+
+        initializeLobby();
+    </script>
+</body>
+</html>
