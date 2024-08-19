@@ -56,7 +56,54 @@
         <div class="game-list">
             <a href="rooms.html?game=ppt" class="game-button">Piedra, Papel o Tijeras</a>
             <a href="rooms.html?game=adivina" class="game-button">Adivina el Número</a>
+            <a href="rooms.html?game=hockey" class="game-button">Hockey 1 vs 1</a>
         </div>
     </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js";
+        import { getDatabase, ref, push, set } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-database.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyDkO_ofuhpY2q1VWcJlZw-tMeIGeMkN4aw",
+            authDomain: "aaaa-39448.firebaseapp.com",
+            databaseURL: "https://aaaa-39448-default-rtdb.europe-west1.firebasedatabase.app",
+            projectId: "aaaa-39448",
+            storageBucket: "aaaa-39448.appspot.com",
+            messagingSenderId: "56086769891",
+            appId: "1:56086769891:web:213eaee122bc094ff895d6",
+            measurementId: "G-K5GBENTRK3"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const database = getDatabase(app);
+
+        function generateRoomCode() {
+            const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+            let result = '';
+            for (let i = 0; i < 4; i++) {
+                result += characters.charAt(Math.floor(Math.random() * characters.length));
+            }
+            return result;
+        }
+
+        document.querySelectorAll('.game-button').forEach(button => {
+            button.addEventListener('click', function(e) {
+                e.preventDefault();
+                const gameType = this.href.split('=')[1];
+                const newRoomRef = push(ref(database, 'rooms'));
+                const roomCode = generateRoomCode();
+                set(newRoomRef, {
+                    gameType: gameType,
+                    code: roomCode,
+                    players: 1,
+                    status: 'waiting',
+                    createdAt: Date.now()
+                }).then(() => {
+                    window.location.href = `${gameType}.html?room=${newRoomRef.key}`;
+                });
+            });
+        });
+    </script>
 </body>
 </html>
