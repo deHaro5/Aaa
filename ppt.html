@@ -125,12 +125,12 @@
                 updateScoreDisplay();
                 document.getElementById('status').textContent = "Ronda terminada. Elige de nuevo para jugar otra ronda.";
                 document.getElementById('choices').style.display = 'block';
-                set(ref(database, `rooms/${roomId}/choices`), null);
+set(ref(database, `rooms/${roomId}/choices`), null);
             }
         });
 
         function determineWinner(choice1, choice2) {
-let message = `Jugador 1 eligió ${choice1}. Jugador 2 eligió ${choice2}.<br>`;
+            let message = `Jugador 1 eligió ${choice1}. Jugador 2 eligió ${choice2}.<br>`;
             if (choice1 === choice2) return {message: message + "¡Empate!", winner: null};
             if ((choice1 === "piedra" && choice2 === "tijeras") ||
                 (choice1 === "papel" && choice2 === "piedra") ||
