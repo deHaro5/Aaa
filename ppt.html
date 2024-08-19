@@ -36,7 +36,7 @@
         button:hover {
             opacity: 0.8;
         }
-        #result, #status {
+        #result, #status, #roundInfo {
             margin-top: 20px;
             font-size: 18px;
             font-weight: bold;
@@ -58,6 +58,14 @@
             background-color: #2196F3;
             color: white;
         }
+        #choices {
+            display: flex;
+            justify-content: center;
+        }
+        .player-choice {
+            font-size: 48px;
+            margin: 0 20px;
+        }
     </style>
 </head>
 <body>
@@ -66,10 +74,15 @@
         <h1>Piedra, Papel o Tijeras</h1>
         <div id="status">Esperando al otro jugador...</div>
         <button id="startGame" style="display:none;">Iniciar Partida</button>
+        <div id="roundInfo" style="display:none;"></div>
         <div id="choices" style="display:none;">
             <button class="choice-btn" onclick="play('piedra')">🪨</button>
             <button class="choice-btn" onclick="play('papel')">📄</button>
             <button class="choice-btn" onclick="play('tijeras')">✂️</button>
+        </div>
+        <div id="playerChoices" style="display:none;">
+            <span class="player-choice" id="player1Choice"></span>
+            <span class="player-choice" id="player2Choice"></span>
         </div>
         <div id="result"></div>
         <div id="score">Jugador 1: 0 | Jugador 2: 0</div>
@@ -100,6 +113,8 @@
 
         let playerNumber;
         let score = {player1: 0, player2: 0};
+        let currentRound = 0;
+        const totalRounds = 10;
 
         onValue(roomRef, (snapshot) => {
             const data = snapshot.val();
@@ -116,16 +131,21 @@
                     score = data.score;
                     updateScoreDisplay();
                 }
+                if (data.currentRound !== undefined) {
+                    currentRound = data.currentRound;
+                    updateRoundInfo();
+                }
             }
         });
 
         document.getElementById('startGame').addEventListener('click', () => {
-            update(roomRef, { gameStarted: true });
+            update(roomRef, { gameStarted: true, currentRound: 1, score: {player1: 0, player2: 0} });
         });
 
         function initializeGame() {
             document.getElementById('status').style.display = 'none';
             document.getElementById('startGame').style.display = 'none';
+            document.getElementById('roundInfo').style.display = 'block';
             if (!playerNumber) {
                 get(roomRef).then((snapshot) => {
                     const data = snapshot.val();
@@ -139,9 +159,13 @@
         }
 
         function showChoices() {
-            document.getElementById('choices').style.display = 'block';
+            document.getElementById('choices').style.display = 'flex';
             document.getElementById('status').textContent = 'Elige tu jugada';
             document.getElementById('status').style.display = 'block';
+        }
+
+        function updateRoundInfo() {
+            document.getElementById('roundInfo').textContent = `Ronda ${currentRound} de ${totalRounds}`;
         }
 
         window.play = function(choice) {
@@ -155,30 +179,69 @@
             if (choices && choices.player1 && choices.player2) {
                 const result = determineWinner(choices.player1, choices.player2);
                 document.getElementById('result').innerHTML = result.message;
+                document.getElementById('player1Choice').textContent = getEmojiForChoice(choices.player1);
+                document.getElementById('player2Choice').textContent = getEmojiForChoice(choices.player2);
+                document.getElementById('playerChoices').style.display = 'flex';
+
                 if (result.winner) {
                     score[result.winner]++;
                     update(ref(database, `rooms/${roomId}/score`), score);
                 }
+
+                currentRound++;
+                if (currentRound <= totalRounds) {
+                    update(ref(database, `rooms/${roomId}`), { 
+                        currentRound: currentRound,
+                        choices: null
+                    });
+                    setTimeout(() => {
+                        document.getElementById('playerChoices').style.display = 'none';
+                        showChoices();
+                    }, 3000);
+                } else {
+                    endGame();
+                }
+                
                 updateScoreDisplay();
-                document.getElementById('status').textContent = "Ronda terminada. Elige de nuevo para jugar otra ronda.";
-                showChoices();
-                set(ref(database, `rooms/${roomId}/choices`), null);
+                updateRoundInfo();
             }
         });
 
         function determineWinner(choice1, choice2) {
-            let message = `Jugador 1 eligió ${choice1}. Jugador 2 eligió ${choice2}.<br>`;
-            if (choice1 === choice2) return {message: message + "¡Empate!", winner: null};
+            if (choice1 === choice2) return {message: "¡Empate!", winner: null};
             if ((choice1 === "piedra" && choice2 === "tijeras") ||
                 (choice1 === "papel" && choice2 === "piedra") ||
                 (choice1 === "tijeras" && choice2 === "papel")) {
-                return {message: message + "¡Jugador 1 gana!", winner: 'player1'};
+                return {message: "¡Jugador 1 gana!", winner: 'player1'};
             }
-            return {message: message + "¡Jugador 2 gana!", winner: 'player2'};
+            return {message: "¡Jugador 2 gana!", winner: 'player2'};
+        }
+
+        function getEmojiForChoice(choice) {
+            switch(choice) {
+                case 'piedra': return '🪨';
+                case 'papel': return '📄';
+                case 'tijeras': return '✂️';
+                default: return '';
+            }
         }
 
         function updateScoreDisplay() {
             document.getElementById('score').textContent = `Jugador 1: ${score.player1} | Jugador 2: ${score.player2}`;
+        }
+
+        function endGame() {
+            let finalMessage = "¡Juego terminado! ";
+            if (score.player1 > score.player2) {
+                finalMessage += "¡Jugador 1 gana la partida!";
+            } else if (score.player2 > score.player1) {
+                finalMessage += "¡Jugador 2 gana la partida!";
+            } else {
+                finalMessage += "¡Es un empate!";
+            }
+            document.getElementById('result').textContent = finalMessage;
+            document.getElementById('choices').style.display = 'none';
+            document.getElementById('status').textContent = "Partida finalizada";
         }
 
         window.goBack = function() {
