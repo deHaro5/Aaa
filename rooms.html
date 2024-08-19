@@ -86,7 +86,7 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js";
-        import { getDatabase, ref, push, set, onValue, update } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-database.js";
+        import { getDatabase, ref, push, set, onValue, update, get, query, orderByChild, endAt, remove, child, serverTimestamp } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-database.js";
 
         const firebaseConfig = {
             apiKey: "YOUR_API_KEY",
@@ -130,7 +130,7 @@
                 code: roomCode,
                 players: 1,
                 status: 'waiting',
-                createdAt: Date.now()
+                createdAt: serverTimestamp()
             }).then(() => {
                 log(`Sala creada con éxito. Código: ${roomCode}`);
                 window.location.href = `${gameType}.html?room=${newRoomRef.key}`;
@@ -180,12 +180,19 @@
 
         document.getElementById('createRoom').addEventListener('click', createRoom);
 
-        // Función para limpiar salas antiguas
         function cleanOldRooms() {
             log('Limpiando salas antiguas...');
             const oneHourAgo = Date.now() - (60 * 60 * 1000);
             const roomsRef = ref(database, 'rooms');
-            // Implementar la lógica de limpieza aquí
+            get(query(roomsRef, orderByChild('createdAt'), endAt(oneHourAgo))).then((snapshot) => {
+                if (snapshot.exists()) {
+                    snapshot.forEach((childSnapshot) => {
+                        remove(child(roomsRef, childSnapshot.key));
+                    });
+                }
+            }).catch((error) => {
+                console.error("Error cleaning old rooms: ", error);
+            });
         }
 
         // Llama a cleanOldRooms cada hora
