@@ -52,30 +52,30 @@
         <button onclick="goBack()" style="margin-top: 20px;">Volver al menú principal</button>
     </div>
 
-    <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-database-compat.js"></script>
-    <script>
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js";
+        import { getDatabase, ref, onValue, set, update } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-database.js";
+
         const firebaseConfig = {
-            apiKey: "AIzaSyDkO_ofuhpY2q1VWcJlZw-tMeIGeMkN4aw",
-            authDomain: "aaaa-39448.firebaseapp.com",
-            projectId: "aaaa-39448",
-            storageBucket: "aaaa-39448.appspot.com",
-            messagingSenderId: "56086769891",
-            appId: "1:56086769891:web:213eaee122bc094ff895d6",
-            measurementId: "G-K5GBENTRK3",
-            databaseURL: "https://aaaa-39448-default-rtdb.firebaseio.com"
+            apiKey: "YOUR_API_KEY",
+            authDomain: "YOUR_AUTH_DOMAIN",
+            projectId: "YOUR_PROJECT_ID",
+            storageBucket: "YOUR_STORAGE_BUCKET",
+            messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
+            appId: "YOUR_APP_ID",
+            databaseURL: "YOUR_DATABASE_URL"
         };
 
-        firebase.initializeApp(firebaseConfig);
-        const database = firebase.database();
+        const app = initializeApp(firebaseConfig);
+        const database = getDatabase(app);
 
         const urlParams = new URLSearchParams(window.location.search);
         const roomId = urlParams.get('room');
-        const roomRef = database.ref('rooms/' + roomId);
+        const roomRef = ref(database, 'rooms/' + roomId);
 
         let playerNumber;
 
-        roomRef.on('value', (snapshot) => {
+        onValue(roomRef, (snapshot) => {
             const data = snapshot.val();
             if (data && data.players === 2) {
                 document.getElementById('waiting').style.display = 'none';
@@ -89,27 +89,27 @@
             }
         });
 
-        function setSecretNumber() {
+        window.setSecretNumber = function() {
             const secretNumber = document.getElementById('secretNumber').value;
-            roomRef.child('secretNumber').set(secretNumber);
+            set(ref(database, `rooms/${roomId}/secretNumber`), secretNumber);
             document.getElementById('player1').innerHTML = '<p>Esperando a que el Jugador 2 adivine...</p>';
         }
 
-        function makeGuess() {
+        window.makeGuess = function() {
             const guess = document.getElementById('guess').value;
-            roomRef.child('guess').set(guess);
+            set(ref(database, `rooms/${roomId}/guess`), guess);
         }
 
-        roomRef.child('secretNumber').on('value', (snapshot) => {
+        onValue(ref(database, `rooms/${roomId}/secretNumber`), (snapshot) => {
             const secretNumber = snapshot.val();
             if (secretNumber && playerNumber === 2) {
                 document.getElementById('player2').style.display = 'block';
             }
         });
 
-        roomRef.child('guess').on('value', (snapshot) => {
+        onValue(ref(database, `rooms/${roomId}/guess`), (snapshot) => {
             const guess = snapshot.val();
-            roomRef.child('secretNumber').once('value', (secretSnapshot) => {
+            onValue(ref(database, `rooms/${roomId}/secretNumber`), (secretSnapshot) => {
                 const secretNumber = secretSnapshot.val();
                 if (guess && secretNumber) {
                     let result;
@@ -125,8 +125,8 @@
             });
         });
 
-        function goBack() {
-            roomRef.remove().then(() => {
+        window.goBack = function() {
+            set(ref(database, `rooms/${roomId}`), null).then(() => {
                 window.location.href = 'index.html';
             });
         }
