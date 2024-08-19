@@ -59,31 +59,31 @@
         <button onclick="goBack()" style="margin-top: 20px;">Volver al menú principal</button>
     </div>
 
-    <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-database-compat.js"></script>
-    <script>
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js";
+        import { getDatabase, ref, onValue, set, update } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-database.js";
+
         const firebaseConfig = {
-            apiKey: "AIzaSyDkO_ofuhpY2q1VWcJlZw-tMeIGeMkN4aw",
-            authDomain: "aaaa-39448.firebaseapp.com",
-            projectId: "aaaa-39448",
-            storageBucket: "aaaa-39448.appspot.com",
-            messagingSenderId: "56086769891",
-            appId: "1:56086769891:web:213eaee122bc094ff895d6",
-            measurementId: "G-K5GBENTRK3",
-            databaseURL: "https://aaaa-39448-default-rtdb.firebaseio.com"
+            apiKey: "YOUR_API_KEY",
+            authDomain: "YOUR_AUTH_DOMAIN",
+            projectId: "YOUR_PROJECT_ID",
+            storageBucket: "YOUR_STORAGE_BUCKET",
+            messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
+            appId: "YOUR_APP_ID",
+            databaseURL: "YOUR_DATABASE_URL"
         };
 
-        firebase.initializeApp(firebaseConfig);
-        const database = firebase.database();
+        const app = initializeApp(firebaseConfig);
+        const database = getDatabase(app);
 
         const urlParams = new URLSearchParams(window.location.search);
         const roomId = urlParams.get('room');
-        const roomRef = database.ref('rooms/' + roomId);
+        const roomRef = ref(database, 'rooms/' + roomId);
 
         let playerNumber;
         let score = {player1: 0, player2: 0};
 
-        roomRef.on('value', (snapshot) => {
+        onValue(roomRef, (snapshot) => {
             const data = snapshot.val();
             const statusDiv = document.getElementById('status');
             
@@ -107,30 +107,30 @@
             }
         });
 
-        function play(choice) {
-            roomRef.child(`choices/player${playerNumber}`).set(choice);
+        window.play = function(choice) {
+            set(ref(database, `rooms/${roomId}/choices/player${playerNumber}`), choice);
             document.getElementById('status').textContent = "Esperando la elección del otro jugador...";
             document.getElementById('choices').style.display = 'none';
         }
 
-        roomRef.child('choices').on('value', (snapshot) => {
+        onValue(ref(database, `rooms/${roomId}/choices`), (snapshot) => {
             const choices = snapshot.val();
             if (choices && choices.player1 && choices.player2) {
                 const result = determineWinner(choices.player1, choices.player2);
                 document.getElementById('result').innerHTML = result.message;
                 if (result.winner) {
                     score[result.winner]++;
-                    roomRef.child('score').set(score);
+                    update(ref(database, `rooms/${roomId}/score`), score);
                 }
                 updateScoreDisplay();
                 document.getElementById('status').textContent = "Ronda terminada. Elige de nuevo para jugar otra ronda.";
                 document.getElementById('choices').style.display = 'block';
-                roomRef.child('choices').set(null);
+                set(ref(database, `rooms/${roomId}/choices`), null);
             }
         });
 
         function determineWinner(choice1, choice2) {
-            let message = `Jugador 1 eligió ${choice1}. Jugador 2 eligió ${choice2}.<br>`;
+let message = `Jugador 1 eligió ${choice1}. Jugador 2 eligió ${choice2}.<br>`;
             if (choice1 === choice2) return {message: message + "¡Empate!", winner: null};
             if ((choice1 === "piedra" && choice2 === "tijeras") ||
                 (choice1 === "papel" && choice2 === "piedra") ||
@@ -144,8 +144,8 @@
             document.getElementById('score').textContent = `Jugador 1: ${score.player1} | Jugador 2: ${score.player2}`;
         }
 
-        function goBack() {
-            roomRef.remove().then(() => {
+        window.goBack = function() {
+            set(ref(database, `rooms/${roomId}`), null).then(() => {
                 window.location.href = 'index.html';
             });
         }
@@ -153,7 +153,10 @@
         // Manejar desconexiones
         window.addEventListener('beforeunload', () => {
             if (playerNumber) {
-                roomRef.child('players').transaction(players => players > 0 ? players - 1 : 0);
+                update(ref(database, `rooms/${roomId}`), {
+                    players: 1,
+                    status: 'waiting'
+                });
             }
         });
     </script>
