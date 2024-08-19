@@ -21,7 +21,7 @@
             padding: 20px;
             text-align: center;
             box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-            max-width: 600px;
+            max-width: 800px;
             width: 100%;
         }
         #rink {
@@ -54,7 +54,7 @@
             background-color: black;
             border-radius: 50%;
             position: absolute;
-            left: 295px;
+            left: 395px;
             top: 145px;
         }
         .goal {
@@ -90,6 +90,30 @@
             font-weight: bold;
             margin: 10px 0;
         }
+        #controls {
+            display: flex;
+            justify-content: space-around;
+            margin-top: 20px;
+        }
+        .control-button {
+            width: 80px;
+            height: 80px;
+            font-size: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: #2196F3;
+        }
+        @media (max-width: 600px) {
+            #rink {
+                height: 200px;
+            }
+            .control-button {
+                width: 60px;
+                height: 60px;
+                font-size: 18px;
+            }
+        }
     </style>
 </head>
 <body>
@@ -108,9 +132,9 @@
             <div id="goal2" class="goal"></div>
         </div>
         <div id="controls" style="display:none;">
-            <button id="moveUp">Arriba</button>
-            <button id="moveDown">Abajo</button>
-            <button id="shoot">Disparar</button>
+            <button id="moveLeft" class="control-button">←</button>
+            <button id="moveRight" class="control-button">→</button>
+            <button id="shoot" class="control-button">🏒</button>
         </div>
         <button onclick="goBack()" style="margin-top: 20px;">Volver al menú principal</button>
     </div>
@@ -168,10 +192,10 @@
             update(roomRef, { 
                 gameStarted: true, 
                 score: {player1: 0, player2: 0},
-                puckPosition: {x: 295, y: 145},
+                puckPosition: {x: 395, y: 145},
                 playerPositions: {
                     player1: {x: 10, y: 140},
-                    player2: {x: 570, y: 140}
+                    player2: {x: 770, y: 140}
                 }
             });
             startTimer();
@@ -180,7 +204,7 @@
         function initializeGame() {
             document.getElementById('status').style.display = 'none';
             document.getElementById('startGame').style.display = 'none';
-            document.getElementById('controls').style.display = 'block';
+            document.getElementById('controls').style.display = 'flex';
             if (!playerNumber) {
                 get(roomRef).then((snapshot) => {
                     const data = snapshot.val();
@@ -209,8 +233,8 @@
             player2.style.top = `${positions.player2.y}px`;
         }
 
-        document.getElementById('moveUp').addEventListener('click', () => movePlayer('up'));
-        document.getElementById('moveDown').addEventListener('click', () => movePlayer('down'));
+        document.getElementById('moveLeft').addEventListener('click', () => movePlayer('left'));
+        document.getElementById('moveRight').addEventListener('click', () => movePlayer('right'));
         document.getElementById('shoot').addEventListener('click', shootPuck);
 
         function movePlayer(direction) {
@@ -219,11 +243,12 @@
                 const positions = data.playerPositions;
                 const player = `player${playerNumber}`;
                 const step = 10;
+                const rinkWidth = 800; // Ancho total de la pista
 
-                if (direction === 'up' && positions[player].y > 0) {
-                    positions[player].y -= step;
-                } else if (direction === 'down' && positions[player].y < 280) {
-                    positions[player].y += step;
+                if (direction === 'left' && positions[player].x > 0) {
+                    positions[player].x -= step;
+                } else if (direction === 'right' && positions[player].x < rinkWidth - 20) {
+                    positions[player].x += step;
                 }
 
                 update(ref(database, `rooms/${roomId}/playerPositions`), positions);
@@ -254,7 +279,7 @@
         function checkGoal(puckPosition) {
             if (puckPosition.x <= 5 && puckPosition.y > 120 && puckPosition.y < 180) {
                 scoreGoal('player2');
-            } else if (puckPosition.x >= 595 && puckPosition.y > 120 && puckPosition.y < 180) {
+            } else if (puckPosition.x >= 795 && puckPosition.y > 120 && puckPosition.y < 180) {
                 scoreGoal('player1');
             }
         }
@@ -266,7 +291,7 @@
                 newScore[scoringPlayer]++;
                 update(ref(database, `rooms/${roomId}`), { 
                     score: newScore,
-                    puckPosition: {x: 295, y: 145}
+                    puckPosition: {x: 395, y: 145}
                 });
             });
         }
