@@ -377,4 +377,198 @@
             });
         }
 
-        window.goBack = function() {
+window.goBack = function() {
+            clearInterval(gameLoop);
+            set(ref(database, `rooms/${roomId}`), null).then(() => {
+                window.location.href = 'index.html';
+            });
+        }
+
+        window.addEventListener('beforeunload', () => {
+            if (playerNumber) {
+                update(ref(database, `rooms/${roomId}/players/${playerNumber}`), {connected: false});
+            }
+        });
+
+        // Nuevas funciones para mejorar la jugabilidad
+
+        function addPowerUp() {
+            const powerUp = document.createElement('div');
+            powerUp.className = 'power-up';
+            powerUp.style.position = 'absolute';
+            powerUp.style.width = '20px';
+            powerUp.style.height = '20px';
+            powerUp.style.backgroundColor = 'gold';
+            powerUp.style.borderRadius = '50%';
+            powerUp.style.left = `${Math.random() * 580}px`;
+            powerUp.style.top = `${Math.random() * 380}px`;
+            document.getElementById('gameArea').appendChild(powerUp);
+
+            setTimeout(() => powerUp.remove(), 5000); // El power-up desaparece después de 5 segundos
+        }
+
+        function checkPowerUpCollision() {
+            const playerCar = document.querySelector(`#gameArea .car:nth-child(${playerNumber})`);
+            const powerUps = document.querySelectorAll('#gameArea .power-up');
+
+            powerUps.forEach(powerUp => {
+                if (isColliding(playerCar, powerUp)) {
+                    powerUp.remove();
+                    activatePowerUp();
+                }
+            });
+        }
+
+        function isColliding(element1, element2) {
+            const rect1 = element1.getBoundingClientRect();
+            const rect2 = element2.getBoundingClientRect();
+            return !(rect1.right < rect2.left || 
+                     rect1.left > rect2.right || 
+                     rect1.bottom < rect2.top || 
+                     rect1.top > rect2.bottom);
+        }
+
+        function activatePowerUp() {
+            // Implementa diferentes tipos de power-ups
+            const powerUpTypes = ['speed', 'invincibility', 'superDrift'];
+            const randomPowerUp = powerUpTypes[Math.floor(Math.random() * powerUpTypes.length)];
+
+            switch (randomPowerUp) {
+                case 'speed':
+                    applySpeedBoost();
+                    break;
+                case 'invincibility':
+                    applyInvincibility();
+                    break;
+                case 'superDrift':
+                    applySuperDrift();
+                    break;
+            }
+        }
+
+        function applySpeedBoost() {
+            boost = maxBoost;
+            updateBoostMeter();
+            setTimeout(() => {
+                boost = 0;
+                updateBoostMeter();
+            }, 3000);
+        }
+
+        function applyInvincibility() {
+            const playerCar = document.querySelector(`#gameArea .car:nth-child(${playerNumber})`);
+            playerCar.style.boxShadow = '0 0 10px 5px rgba(0, 255, 0, 0.7)';
+            setTimeout(() => {
+                playerCar.style.boxShadow = 'none';
+            }, 5000);
+        }
+
+        function applySuperDrift() {
+            // Aumenta temporalmente la puntuación de drift
+            update(ref(database, `rooms/${roomId}/players/${playerNumber}/driftMultiplier`), 3);
+            setTimeout(() => {
+                update(ref(database, `rooms/${roomId}/players/${playerNumber}/driftMultiplier`), 1);
+            }, 7000);
+        }
+
+        function startRound() {
+            currentRound++;
+            if (currentRound > totalRounds) {
+                endGame();
+                return;
+            }
+            updateRoundInfo();
+            resetPlayerPositions();
+            startCountdown();
+        }
+
+        function resetPlayerPositions() {
+            const startPositions = [
+                {x: 50, y: 50},
+                {x: 550, y: 50},
+                {x: 50, y: 350},
+                {x: 550, y: 350}
+            ];
+            Object.keys(players).forEach((player, index) => {
+                update(ref(database, `rooms/${roomId}/players/${player}`), {
+                    x: startPositions[index].x,
+                    y: startPositions[index].y,
+                    angle: 0,
+                    driftScore: 0
+                });
+            });
+        }
+
+        function startCountdown() {
+            let count = 3;
+            const countdownElement = document.createElement('div');
+            countdownElement.style.position = 'absolute';
+            countdownElement.style.top = '50%';
+            countdownElement.style.left = '50%';
+            countdownElement.style.transform = 'translate(-50%, -50%)';
+            countdownElement.style.fontSize = '72px';
+            countdownElement.style.color = 'white';
+            document.getElementById('gameArea').appendChild(countdownElement);
+
+            const countdownInterval = setInterval(() => {
+                if (count > 0) {
+                    countdownElement.textContent = count;
+                    count--;
+                } else {
+                    countdownElement.textContent = '¡GO!';
+                    clearInterval(countdownInterval);
+                    setTimeout(() => {
+                        countdownElement.remove();
+                        startGameLoop();
+                    }, 1000);
+                }
+            }, 1000);
+        }
+
+        function endGame() {
+            clearInterval(gameLoop);
+            const winner = Object.entries(score).reduce((a, b) => a[1] > b[1] ? a : b)[0];
+            const resultElement = document.getElementById('result');
+            resultElement.textContent = `¡El ganador es ${winner} con ${score[winner]} puntos!`;
+            resultElement.style.display = 'block';
+            document.getElementById('playGame').textContent = 'Jugar de nuevo';
+            document.getElementById('playGame').style.display = 'block';
+            update(ref(database, `rooms/${roomId}/gameStarted`), false);
+        }
+
+        // Inicialización adicional
+        setInterval(addPowerUp, 10000); // Añade un power-up cada 10 segundos
+
+        // Modificar la función startGameLoop para incluir las nuevas características
+        function startGameLoop() {
+            gameLoop = setInterval(() => {
+                updatePlayerPositions();
+                checkCollisions();
+                checkPowerUpCollision();
+                updateScores();
+            }, 1000 / 60); // 60 FPS
+        }
+
+        // Modificar la función checkCollisions para incluir colisiones con las paredes
+        function checkCollisions() {
+            Object.keys(players).forEach(player => {
+                const carElement = document.querySelector(`#gameArea .car:nth-child(${player.slice(-1)})`);
+                const rect = carElement.getBoundingClientRect();
+                const gameAreaRect = document.getElementById('gameArea').getBoundingClientRect();
+
+                if (rect.left < gameAreaRect.left || rect.right > gameAreaRect.right ||
+                    rect.top < gameAreaRect.top || rect.bottom > gameAreaRect.bottom) {
+                    // Collision with wall, bounce back
+                    const newX = Math.max(0, Math.min(560, players[player].x));
+                    const newY = Math.max(0, Math.min(340, players[player].y));
+                    update(ref(database, `rooms/${roomId}/players/${player}`), {
+                        x: newX,
+                        y: newY,
+                        driftScore: Math.max(0, players[player].driftScore - 10) // Penalty for wall collision
+                    });
+                }
+            });
+        }
+    </script>
+</body>
+</html>
