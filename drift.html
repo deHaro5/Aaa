@@ -6,17 +6,18 @@
     <title>Drift Masters Arena</title>
     <style>
         body {
-            font-family: Arial, sans-serif;
+            font-family: 'Arial', sans-serif;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
             min-height: 100vh;
             margin: 0;
-            background-color: #f0f0f0;
+            background-color: #121212;
+            color: #ffffff;
         }
         #game {
-            background-color: white;
+            background-color: #1e1e1e;
             border-radius: 10px;
             padding: 20px;
             text-align: center;
@@ -31,10 +32,13 @@
             cursor: pointer;
             border: none;
             border-radius: 5px;
-            transition: background-color 0.3s;
+            transition: all 0.3s ease;
+            background-color: #4CAF50;
+            color: white;
         }
         button:hover {
-            opacity: 0.8;
+            background-color: #45a049;
+            transform: translateY(-2px);
         }
         #result, #status, #roundInfo {
             margin-top: 20px;
@@ -49,29 +53,31 @@
             font-size: 24px;
             font-weight: bold;
             margin-bottom: 20px;
-        }
-        #startGame, #playGame {
-            background-color: #4CAF50;
-            color: white;
+            color: #ffd700;
         }
         #gameArea {
             width: 600px;
             height: 400px;
-            background-color: #ddd;
+            background-color: #2c2c2c;
             margin: 20px auto;
             position: relative;
             overflow: hidden;
+            border-radius: 10px;
+            box-shadow: inset 0 0 10px rgba(0,0,0,0.5);
         }
         .car {
             width: 40px;
             height: 60px;
             position: absolute;
             transition: all 0.1s;
+            background-size: contain;
+            background-repeat: no-repeat;
+            background-position: center;
         }
         #joystick {
             width: 150px;
             height: 150px;
-            background-color: rgba(0, 0, 0, 0.1);
+            background-color: rgba(255, 255, 255, 0.1);
             border-radius: 50%;
             margin: 20px auto;
             position: relative;
@@ -79,12 +85,32 @@
         #stick {
             width: 50px;
             height: 50px;
-            background-color: #2196F3;
+            background-color: #ffd700;
             border-radius: 50%;
             position: absolute;
             top: 50px;
             left: 50px;
             cursor: grab;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+        .boost-meter {
+            width: 100px;
+            height: 10px;
+            background-color: #333;
+            margin: 10px auto;
+            border-radius: 5px;
+            overflow: hidden;
+        }
+        .boost-fill {
+            height: 100%;
+            width: 0%;
+            background-color: #ff4500;
+            transition: width 0.3s ease;
+        }
+        .drift-trail {
+            position: absolute;
+            background-color: rgba(255, 255, 255, 0.2);
+            border-radius: 50%;
         }
     </style>
 </head>
@@ -96,12 +122,13 @@
         <button id="playGame" style="display:none;">Iniciar Juego</button>
         <div id="roundInfo" style="display:none;"></div>
         <div id="gameArea" style="display:none;"></div>
+        <div class="boost-meter"><div class="boost-fill"></div></div>
         <div id="joystick" style="display:none;">
             <div id="stick"></div>
         </div>
         <div id="result"></div>
         <div id="score">Jugador 1: 0 | Jugador 2: 0 | Jugador 3: 0 | Jugador 4: 0</div>
-        <button onclick="goBack()" style="margin-top: 20px;">Volver al menú principal</button>
+        <button onclick="goBack()">Volver al menú principal</button>
     </div>
 
     <script type="module">
@@ -131,18 +158,29 @@
         let currentRound = 0;
         const totalRounds = 3;
         let players = {};
+        let playerCount = 0;
+        let gameLoop;
+        let boost = 0;
+        const maxBoost = 100;
+        const boostIncreaseRate = 0.5;
+        const boostDecreaseRate = 1;
 
         onValue(roomRef, (snapshot) => {
             const data = snapshot.val();
             if (data) {
                 document.getElementById('roomCode').textContent = `Código de sala: ${data.code}`;
-                if (data.players && Object.keys(data.players).length >= 1 && !data.gameStarted) {
-                    document.getElementById('status').textContent = `${Object.keys(data.players).length} jugador(es) conectado(s). Listo para iniciar.`;
+                playerCount = Object.keys(data.players || {}).length;
+                
+                if (playerCount >= 2 && !data.gameStarted) {
+                    document.getElementById('status').textContent = `${playerCount} jugadores conectados. Listo para iniciar.`;
                     document.getElementById('playGame').style.display = 'block';
-                }
-                if (data.gameStarted) {
+                } else if (playerCount === 1 && !data.gameStarted) {
+                    document.getElementById('status').textContent = 'Esperando a más jugadores...';
+                    document.getElementById('playGame').style.display = 'none';
+                } else if (data.gameStarted) {
                     initializeGame();
                 }
+
                 if (data.score) {
                     score = data.score;
                     updateScoreDisplay();
@@ -159,23 +197,22 @@
         });
 
         document.getElementById('playGame').addEventListener('click', () => {
-            startGame();
+            if (playerCount >= 2) {
+                startGame();
+            }
         });
 
         function startGame() {
-            get(roomRef).then((snapshot) => {
-                const data = snapshot.val();
-                const playerCount = Object.keys(data.players).length;
-                const initialPlayers = {};
-                for (let i = 1; i <= playerCount; i++) {
-                    initialPlayers[`player${i}`] = {x: 50 + (i-1) * 100, y: 50, angle: 0};
-                }
-                update(roomRef, { 
-                    gameStarted: true, 
-                    currentRound: 1, 
-                    score: {player1: 0, player2: 0, player3: 0, player4: 0},
-                    players: initialPlayers
-                });
+            update(roomRef, { 
+                gameStarted: true, 
+                currentRound: 1, 
+                score: {player1: 0, player2: 0, player3: 0, player4: 0},
+                players: Object.fromEntries(
+                    Array.from({length: playerCount}, (_, i) => [
+                        `player${i+1}`, 
+                        {x: 50 + i * 100, y: 50, angle: 0, connected: true, driftScore: 0}
+                    ])
+                )
             });
         }
 
@@ -188,12 +225,14 @@
             if (!playerNumber) {
                 get(roomRef).then((snapshot) => {
                     const data = snapshot.val();
-                    playerNumber = Object.keys(data.players).length;
-                    update(ref(database, `rooms/${roomId}/players/player${playerNumber}`), {connected: true});
+                    playerNumber = Object.keys(data.players).find(key => !data.players[key].connected);
+                    update(ref(database, `rooms/${roomId}/players/${playerNumber}`), {connected: true});
                     initializeJoystick();
+                    startGameLoop();
                 });
             } else {
                 initializeJoystick();
+                startGameLoop();
             }
         }
 
@@ -202,7 +241,9 @@
         }
 
         function updateScoreDisplay() {
-            document.getElementById('score').textContent = `Jugador 1: ${score.player1} | Jugador 2: ${score.player2} | Jugador 3: ${score.player3} | Jugador 4: ${score.player4}`;
+            document.getElementById('score').textContent = Object.entries(score)
+                .map(([player, score]) => `${player}: ${score}`)
+                .join(' | ');
         }
 
         function updatePlayerPositions() {
@@ -214,14 +255,9 @@
                 car.style.left = `${players[player].x}px`;
                 car.style.top = `${players[player].y}px`;
                 car.style.transform = `rotate(${players[player].angle}deg)`;
-                car.style.backgroundColor = getPlayerColor(player);
+                car.style.backgroundImage = `url('car_${player.slice(-1)}.png')`;
                 gameArea.appendChild(car);
             }
-        }
-
-        function getPlayerColor(player) {
-            const colors = ['red', 'blue', 'green', 'yellow'];
-            return colors[parseInt(player.slice(-1)) - 1];
         }
 
         function initializeJoystick() {
@@ -270,32 +306,75 @@
 
         function updatePlayerPosition(x, y) {
             if (playerNumber) {
-                const playerRef = ref(database, `rooms/${roomId}/players/player${playerNumber}`);
+                const playerRef = ref(database, `rooms/${roomId}/players/${playerNumber}`);
                 get(playerRef).then((snapshot) => {
                     const playerData = snapshot.val();
-                    const newX = Math.max(0, Math.min(560, playerData.x + x * 5));
-                    const newY = Math.max(0, Math.min(340, playerData.y + y * 5));
+                    const speed = boost > 0 ? 10 : 5;
+                    const newX = Math.max(0, Math.min(560, playerData.x + x * speed));
+                    const newY = Math.max(0, Math.min(340, playerData.y + y * speed));
                     const newAngle = Math.atan2(y, x) * 180 / Math.PI;
+                    const isDrifting = Math.abs(x) > 0.5 || Math.abs(y) > 0.5;
+                    
+                    if (isDrifting) {
+                        createDriftTrail(newX, newY);
+                        playerData.driftScore += 1;
+                    }
+                    
                     update(playerRef, {
                         x: newX,
                         y: newY,
-                        angle: newAngle
+                        angle: newAngle,
+                        driftScore: playerData.driftScore
                     });
+
+                    if (boost > 0) {
+                        boost = Math.max(0, boost - boostDecreaseRate);
+                    } else if (isDrifting) {
+                        boost = Math.min(maxBoost, boost + boostIncreaseRate);
+                    }
+                    updateBoostMeter();
                 });
             }
         }
 
-        window.goBack = function() {
-            set(ref(database, `rooms/${roomId}`), null).then(() => {
-                window.location.href = 'index.html';
+        function createDriftTrail(x, y) {
+            const trail = document.createElement('div');
+            trail.className = 'drift-trail';
+            trail.style.left = `${x}px`;
+            trail.style.top = `${y}px`;
+            trail.style.width = '5px';
+            trail.style.height = '5px';
+            document.getElementById('gameArea').appendChild(trail);
+            setTimeout(() => trail.remove(), 1000);
+        }
+
+        function updateBoostMeter() {
+            document.querySelector('.boost-fill').style.width = `${(boost / maxBoost) * 100}%`;
+        }
+
+        function startGameLoop() {
+            gameLoop = setInterval(() => {
+                updatePlayerPositions();
+                checkCollisions();
+                updateScores();
+            }, 1000 / 60); // 60 FPS
+        }
+
+        function checkCollisions() {
+            // Implement collision detection between cars and walls
+        }
+
+        function updateScores() {
+            get(roomRef).then((snapshot) => {
+                const data = snapshot.val();
+                if (data && data.players) {
+                    for (let player in data.players) {
+                        score[player] = data.players[player].driftScore;
+                    }
+                    updateScoreDisplay();
+                    update(ref(database, `rooms/${roomId}/score`), score);
+                }
             });
         }
 
-        window.addEventListener('beforeunload', () => {
-            if (playerNumber) {
-                update(ref(database, `rooms/${roomId}/players/player${playerNumber}`), {connected: false});
-            }
-        });
-    </script>
-</body>
-</html>
+        window.goBack = function() {
