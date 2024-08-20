@@ -50,7 +50,7 @@
             font-weight: bold;
             margin-bottom: 20px;
         }
-        #startGame {
+        #startGame, #playGame {
             background-color: #4CAF50;
             color: white;
         }
@@ -93,7 +93,7 @@
         <div id="roomCode"></div>
         <h1>Drift Masters Arena</h1>
         <div id="status">Esperando a los jugadores...</div>
-        <button id="startGame" style="display:none;">Iniciar Partida</button>
+        <button id="playGame" style="display:none;">Iniciar Juego</button>
         <div id="roundInfo" style="display:none;"></div>
         <div id="gameArea" style="display:none;"></div>
         <div id="joystick" style="display:none;">
@@ -136,9 +136,9 @@
             const data = snapshot.val();
             if (data) {
                 document.getElementById('roomCode').textContent = `Código de sala: ${data.code}`;
-                if (data.players >= 2 && !data.gameStarted) {
-                    document.getElementById('status').textContent = 'Jugadores conectados. Listo para iniciar.';
-                    document.getElementById('startGame').style.display = 'block';
+                if (data.players && Object.keys(data.players).length >= 1 && !data.gameStarted) {
+                    document.getElementById('status').textContent = `${Object.keys(data.players).length} jugador(es) conectado(s). Listo para iniciar.`;
+                    document.getElementById('playGame').style.display = 'block';
                 }
                 if (data.gameStarted) {
                     initializeGame();
@@ -158,23 +158,30 @@
             }
         });
 
-        document.getElementById('startGame').addEventListener('click', () => {
-            update(roomRef, { 
-                gameStarted: true, 
-                currentRound: 1, 
-                score: {player1: 0, player2: 0, player3: 0, player4: 0},
-                players: {
-                    player1: {x: 50, y: 50, angle: 0},
-                    player2: {x: 150, y: 50, angle: 0},
-                    player3: {x: 250, y: 50, angle: 0},
-                    player4: {x: 350, y: 50, angle: 0}
-                }
-            });
+        document.getElementById('playGame').addEventListener('click', () => {
+            startGame();
         });
+
+        function startGame() {
+            get(roomRef).then((snapshot) => {
+                const data = snapshot.val();
+                const playerCount = Object.keys(data.players).length;
+                const initialPlayers = {};
+                for (let i = 1; i <= playerCount; i++) {
+                    initialPlayers[`player${i}`] = {x: 50 + (i-1) * 100, y: 50, angle: 0};
+                }
+                update(roomRef, { 
+                    gameStarted: true, 
+                    currentRound: 1, 
+                    score: {player1: 0, player2: 0, player3: 0, player4: 0},
+                    players: initialPlayers
+                });
+            });
+        }
 
         function initializeGame() {
             document.getElementById('status').style.display = 'none';
-            document.getElementById('startGame').style.display = 'none';
+            document.getElementById('playGame').style.display = 'none';
             document.getElementById('roundInfo').style.display = 'block';
             document.getElementById('gameArea').style.display = 'block';
             document.getElementById('joystick').style.display = 'block';
@@ -182,7 +189,7 @@
                 get(roomRef).then((snapshot) => {
                     const data = snapshot.val();
                     playerNumber = Object.keys(data.players).length;
-                    update(roomRef, { [`player${playerNumber}Connected`]: true });
+                    update(ref(database, `rooms/${roomId}/players/player${playerNumber}`), {connected: true});
                     initializeJoystick();
                 });
             } else {
@@ -286,9 +293,7 @@
 
         window.addEventListener('beforeunload', () => {
             if (playerNumber) {
-                update(ref(database, `rooms/${roomId}`), {
-                    [`player${playerNumber}Connected`]: false
-                });
+                update(ref(database, `rooms/${roomId}/players/player${playerNumber}`), {connected: false});
             }
         });
     </script>
