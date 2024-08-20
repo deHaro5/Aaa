@@ -86,7 +86,7 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js";
-        import { getDatabase, ref, push, set, onValue, update, get, query, orderByChild, endAt, remove, child, serverTimestamp } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-database.js";
+        import { getDatabase, ref, push, set, onValue, update, get, query, orderByChild, endAt, remove, child } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-database.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyDkO_ofuhpY2q1VWcJlZw-tMeIGeMkN4aw",
@@ -131,10 +131,10 @@
                 code: roomCode,
                 players: {},
                 status: 'waiting',
-                createdAt: serverTimestamp()
+                createdAt: Date.now()
             }).then(() => {
                 log(`Sala creada con éxito. Código: ${roomCode}`);
-                window.location.href = `${gameType}.html?room=${newRoomRef.key}`;
+                joinRoom(newRoomRef.key);
             }).catch(error => {
                 log(`Error al crear sala: ${error.message}`);
             });
@@ -142,8 +142,14 @@
 
         function joinRoom(roomKey) {
             log(`Uniéndose a la sala ${roomKey}...`);
-            get(ref(database, `rooms/${roomKey}/players`)).then((snapshot) => {
-                const players = snapshot.val() || {};
+            get(ref(database, `rooms/${roomKey}`)).then((snapshot) => {
+                const roomData = snapshot.val();
+                if (!roomData) {
+                    log('La sala no existe.');
+                    return;
+                }
+
+                const players = roomData.players || {};
                 const playerCount = Object.keys(players).length;
                 
                 if (playerCount >= getMaxPlayers(gameType)) {
@@ -151,11 +157,13 @@
                     return;
                 }
 
+                const newPlayerNumber = playerCount + 1;
                 update(ref(database, `rooms/${roomKey}`), {
-                    status: playerCount + 1 >= getMaxPlayers(gameType) ? 'full' : 'waiting'
+                    [`players/player${newPlayerNumber}`]: { connected: true },
+                    status: newPlayerNumber >= getMaxPlayers(gameType) ? 'full' : 'waiting'
                 }).then(() => {
                     log('Unido a la sala con éxito');
-                    window.location.href = `${gameType}.html?room=${roomKey}`;
+                    window.location.href = `${gameType}.html?room=${roomKey}&player=${newPlayerNumber}`;
                 }).catch(error => {
                     log(`Error al unirse a la sala: ${error.message}`);
                 });
