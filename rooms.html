@@ -50,18 +50,26 @@
             background-color: #f44336;
             color: white;
         }
-        .create-room {
+        .create-room, .start-game {
             margin-top: 20px;
             padding: 10px 20px;
-            background-color: #2196F3;
             color: white;
             border: none;
             border-radius: 5px;
             cursor: pointer;
             transition: background-color 0.3s;
         }
+        .create-room {
+            background-color: #2196F3;
+        }
         .create-room:hover {
             background-color: #1976D2;
+        }
+        .start-game {
+            background-color: #4CAF50;
+        }
+        .start-game:hover {
+            background-color: #45a049;
         }
         #debugLog {
             margin-top: 20px;
@@ -81,6 +89,7 @@
         <h1>Salas de Juego</h1>
         <div id="roomList" class="room-list"></div>
         <button id="createRoom" class="create-room">Crear Nueva Sala</button>
+        <button id="startGame" class="start-game" style="display: none;">Empezar Juego</button>
         <div id="debugLog"></div>
     </div>
 
@@ -106,6 +115,9 @@
         const gameType = urlParams.get('game');
 
         const debugLog = document.getElementById('debugLog');
+        const startGameButton = document.getElementById('startGame');
+
+        let currentRoomKey = null;
 
         function log(message) {
             console.log(message);
@@ -163,10 +175,20 @@
                     status: newPlayerNumber >= getMaxPlayers(gameType) ? 'full' : 'waiting'
                 }).then(() => {
                     log('Unido a la sala con éxito');
-                    window.location.href = `${gameType}.html?room=${roomKey}&player=${newPlayerNumber}`;
+                    currentRoomKey = roomKey;
+                    startGameButton.style.display = 'inline-block';
+                    startGameButton.onclick = () => startGame(roomKey);
                 }).catch(error => {
                     log(`Error al unirse a la sala: ${error.message}`);
                 });
+            });
+        }
+
+        function startGame(roomKey) {
+            update(ref(database, `rooms/${roomKey}`), { gameStarted: true }).then(() => {
+                window.location.href = `${gameType}.html?room=${roomKey}`;
+            }).catch(error => {
+                log(`Error al iniciar el juego: ${error.message}`);
             });
         }
 
@@ -192,18 +214,16 @@
             let roomCount = 0;
             snapshot.forEach(childSnapshot => {
                 const roomData = childSnapshot.val();
-                if (roomData.gameType === gameType) {
+                if (roomData.gameType === gameType && !roomData.gameStarted) {
                     roomCount++;
                     const roomElement = document.createElement('div');
                     roomElement.className = `room ${roomData.status === 'waiting' ? 'free' : 'occupied'}`;
                     roomElement.textContent = `Sala ${roomData.code}`;
-                    if (roomData.status === 'waiting') {
-                        roomElement.onclick = () => joinRoom(childSnapshot.key);
-                    }
+                    roomElement.onclick = () => joinRoom(childSnapshot.key);
                     roomList.appendChild(roomElement);
                 }
             });
-            log(`Se encontraron ${roomCount} salas para ${gameType}`);
+            log(`Se encontraron ${roomCount} salas disponibles para ${gameType}`);
         }
 
         log(`Iniciando página de salas para ${gameType}`);
