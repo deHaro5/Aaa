@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Drift Masters Arena</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            background-color: #f0f0f0;
+        }
+        #game {
+            background-color: white;
+            border-radius: 10px;
+            padding: 20px;
+            text-align: center;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            max-width: 800px;
+            width: 100%;
+        }
+        button {
+            font-size: 18px;
+            margin: 10px;
+            padding: 10px 20px;
+            cursor: pointer;
+            border: none;
+            border-radius: 5px;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            opacity: 0.8;
+        }
+        #result, #status, #roundInfo {
+            margin-top: 20px;
+            font-size: 18px;
+            font-weight: bold;
+        }
+        #score {
+            margin-top: 10px;
+            font-size: 16px;
+        }
+        #roomCode {
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 20px;
+        }
+        #startGame {
+            background-color: #4CAF50;
+            color: white;
+        }
+        #gameArea {
+            width: 600px;
+            height: 400px;
+            background-color: #ddd;
+            margin: 20px auto;
+            position: relative;
+            overflow: hidden;
+        }
+        .car {
+            width: 40px;
+            height: 60px;
+            position: absolute;
+            transition: all 0.1s;
+        }
+        #joystick {
+            width: 150px;
+            height: 150px;
+            background-color: rgba(0, 0, 0, 0.1);
+            border-radius: 50%;
+            margin: 20px auto;
+            position: relative;
+        }
+        #stick {
+            width: 50px;
+            height: 50px;
+            background-color: #2196F3;
+            border-radius: 50%;
+            position: absolute;
+            top: 50px;
+            left: 50px;
+            cursor: grab;
+        }
+    </style>
+</head>
+<body>
+    <div id="game">
+        <div id="roomCode"></div>
+        <h1>Drift Masters Arena</h1>
+        <div id="status">Esperando a los jugadores...</div>
+        <button id="startGame" style="display:none;">Iniciar Partida</button>
+        <div id="roundInfo" style="display:none;"></div>
+        <div id="gameArea" style="display:none;"></div>
+        <div id="joystick" style="display:none;">
+            <div id="stick"></div>
+        </div>
+        <div id="result"></div>
+        <div id="score">Jugador 1: 0 | Jugador 2: 0 | Jugador 3: 0 | Jugador 4: 0</div>
+        <button onclick="goBack()" style="margin-top: 20px;">Volver al menú principal</button>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js";
+        import { getDatabase, ref, onValue, set, update, get } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-database.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyDkO_ofuhpY2q1VWcJlZw-tMeIGeMkN4aw",
+            authDomain: "aaaa-39448.firebaseapp.com",
+            databaseURL: "https://aaaa-39448-default-rtdb.europe-west1.firebasedatabase.app",
+            projectId: "aaaa-39448",
+            storageBucket: "aaaa-39448.appspot.com",
+            messagingSenderId: "56086769891",
+            appId: "1:56086769891:web:213eaee122bc094ff895d6",
+            measurementId: "G-K5GBENTRK3"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const database = getDatabase(app);
+
+        const urlParams = new URLSearchParams(window.location.search);
+        const roomId = urlParams.get('room');
+        const roomRef = ref(database, 'rooms/' + roomId);
+
+        let playerNumber;
+        let score = {player1: 0, player2: 0, player3: 0, player4: 0};
+        let currentRound = 0;
+        const totalRounds = 3;
+        let players = {};
+
+        onValue(roomRef, (snapshot) => {
+            const data = snapshot.val();
+            if (data) {
+                document.getElementById('roomCode').textContent = `Código de sala: ${data.code}`;
+                if (data.players >= 2 && !data.gameStarted) {
+                    document.getElementById('status').textContent = 'Jugadores conectados. Listo para iniciar.';
+                    document.getElementById('startGame').style.display = 'block';
+                }
+                if (data.gameStarted) {
+                    initializeGame();
+                }
+                if (data.score) {
+                    score = data.score;
+                    updateScoreDisplay();
+                }
+                if (data.currentRound !== undefined) {
+                    currentRound = data.currentRound;
+                    updateRoundInfo();
+                }
+                if (data.players) {
+                    players = data.players;
+                    updatePlayerPositions();
+                }
+            }
+        });
+
+        document.getElementById('startGame').addEventListener('click', () => {
+            update(roomRef, { 
+                gameStarted: true, 
+                currentRound: 1, 
+                score: {player1: 0, player2: 0, player3: 0, player4: 0},
+                players: {
+                    player1: {x: 50, y: 50, angle: 0},
+                    player2: {x: 150, y: 50, angle: 0},
+                    player3: {x: 250, y: 50, angle: 0},
+                    player4: {x: 350, y: 50, angle: 0}
+                }
+            });
+        });
+
+        function initializeGame() {
+            document.getElementById('status').style.display = 'none';
+            document.getElementById('startGame').style.display = 'none';
+            document.getElementById('roundInfo').style.display = 'block';
+            document.getElementById('gameArea').style.display = 'block';
+            document.getElementById('joystick').style.display = 'block';
+            if (!playerNumber) {
+                get(roomRef).then((snapshot) => {
+                    const data = snapshot.val();
+                    playerNumber = Object.keys(data.players).length;
+                    update(roomRef, { [`player${playerNumber}Connected`]: true });
+                    initializeJoystick();
+                });
+            } else {
+                initializeJoystick();
+            }
+        }
+
+        function updateRoundInfo() {
+            document.getElementById('roundInfo').textContent = `Ronda ${currentRound} de ${totalRounds}`;
+        }
+
+        function updateScoreDisplay() {
+            document.getElementById('score').textContent = `Jugador 1: ${score.player1} | Jugador 2: ${score.player2} | Jugador 3: ${score.player3} | Jugador 4: ${score.player4}`;
+        }
+
+        function updatePlayerPositions() {
+            const gameArea = document.getElementById('gameArea');
+            gameArea.innerHTML = '';
+            for (let player in players) {
+                const car = document.createElement('div');
+                car.className = 'car';
+                car.style.left = `${players[player].x}px`;
+                car.style.top = `${players[player].y}px`;
+                car.style.transform = `rotate(${players[player].angle}deg)`;
+                car.style.backgroundColor = getPlayerColor(player);
+                gameArea.appendChild(car);
+            }
+        }
+
+        function getPlayerColor(player) {
+            const colors = ['red', 'blue', 'green', 'yellow'];
+            return colors[parseInt(player.slice(-1)) - 1];
+        }
+
+        function initializeJoystick() {
+            const stick = document.getElementById('stick');
+            const joystick = document.getElementById('joystick');
+            let isDragging = false;
+            let centerX, centerY;
+
+            stick.addEventListener('mousedown', startDragging);
+            document.addEventListener('mousemove', drag);
+            document.addEventListener('mouseup', stopDragging);
+
+            stick.addEventListener('touchstart', startDragging);
+            document.addEventListener('touchmove', drag);
+            document.addEventListener('touchend', stopDragging);
+
+            function startDragging(e) {
+                isDragging = true;
+                centerX = joystick.offsetLeft + joystick.offsetWidth / 2;
+                centerY = joystick.offsetTop + joystick.offsetHeight / 2;
+            }
+
+            function stopDragging() {
+                isDragging = false;
+                stick.style.left = '50px';
+                stick.style.top = '50px';
+                updatePlayerPosition(0, 0);
+            }
+
+            function drag(e) {
+                if (isDragging) {
+                    const mouseX = e.clientX || e.touches[0].clientX;
+                    const mouseY = e.clientY || e.touches[0].clientY;
+                    const deltaX = mouseX - centerX;
+                    const deltaY = mouseY - centerY;
+                    const distance = Math.min(50, Math.sqrt(deltaX * deltaX + deltaY * deltaY));
+                    const angle = Math.atan2(deltaY, deltaX);
+                    const stickX = Math.cos(angle) * distance;
+                    const stickY = Math.sin(angle) * distance;
+                    stick.style.left = `${50 + stickX}px`;
+                    stick.style.top = `${50 + stickY}px`;
+                    updatePlayerPosition(stickX / 50, stickY / 50);
+                }
+            }
+        }
+
+        function updatePlayerPosition(x, y) {
+            if (playerNumber) {
+                const playerRef = ref(database, `rooms/${roomId}/players/player${playerNumber}`);
+                get(playerRef).then((snapshot) => {
+                    const playerData = snapshot.val();
+                    const newX = Math.max(0, Math.min(560, playerData.x + x * 5));
+                    const newY = Math.max(0, Math.min(340, playerData.y + y * 5));
+                    const newAngle = Math.atan2(y, x) * 180 / Math.PI;
+                    update(playerRef, {
+                        x: newX,
+                        y: newY,
+                        angle: newAngle
+                    });
+                });
+            }
+        }
+
+        window.goBack = function() {
+            set(ref(database, `rooms/${roomId}`), null).then(() => {
+                window.location.href = 'index.html';
+            });
+        }
+
+        window.addEventListener('beforeunload', () => {
+            if (playerNumber) {
+                update(ref(database, `rooms/${roomId}`), {
+                    [`player${playerNumber}Connected`]: false
+                });
+            }
+        });
+    </script>
+</body>
+</html>
